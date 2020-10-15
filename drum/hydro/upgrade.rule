@@ -147,11 +147,31 @@
   }
 
 @@ hydro/calculate_fluxes.cpp
-  [+:before,1 for (int k=kl; k<=ku; ++k)] {
+  [+:after pmb->precon->PiecewiseLinearX1(k, j, is-1, ie+1, w, bcc, wl_, wr_)] {
+    } else if (order == 5) {
+      pmb->precon->Weno5X1(k, j, is-1, ie+1, w, bcc, wl_, wr_);
+  }
+  [+:after pmb->precon->PiecewiseLinearX2(k, js-1, il, iu, w, bcc, wl_, wr_)] {
+    } else if (order == 5) {
+      pmb->precon->Weno5X2(k, js-1, il, iu, w, bcc, wl_, wr_);
+  }
+  [+:after pmb->precon->PiecewiseLinearX2(k, j, il, iu, w, bcc, wlb_, wr_)] {
+    } else if (order == 5) {
+      pmb->precon->Weno5X2(k, j, il, iu, w, bcc, wlb_, wr_);
+  }
+  [+:after pmb->precon->PiecewiseLinearX3(ks-1, j, il, iu, w, bcc, wl_, wr_)] {
+    } else if (order == 5) {
+      pmb->precon->Weno5X3(ks-1, j, il, iu, w, bcc, wl_, wr_);
+  }
+  [+:after pmb->precon->PiecewiseLinearX3(k, j, il, iu, w, bcc, wlb_, wr_)] {
+    } else if (order == 5) {
+      pmb->precon->Weno5X3(k, j, il, iu, w, bcc, wlb_, wr_);
+  }
+  [+:before,once for (int k=kl; k<=ku; ++k)] {
     // decompose pressure to pertubation pressure and hydrostatic pressure
     DecomposePressure(w, kl, ku, jl, ju);
   }
-  [+:before,1 pmb->pcoord->CenterWidth1] {
+  [+:before,once pmb->pcoord->CenterWidth1] {
     // assemble pressure pertubation
     AssemblePressure(w, wl_, wr_, k, j, is-1, ie+1);
   }
