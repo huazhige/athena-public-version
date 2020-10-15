@@ -1,0 +1,21 @@
+@@ mesh/mesh.hpp
+  [+:in forward_declaration] {
+    class Thermodynamics;
+  }
+  [+:after EquationOfState *peos] {
+    Thermodynamics *pthermo;
+  }
+@@ mesh/mesh.cpp
+  [+:after pmb->pbval->CheckUserBoundaries()] {
+    pmb->phydro->CheckHydro();
+  }
+@@ mesh/meshblock.cpp
+  [+:in header/Athena++] {
+    #include "../thermodynamics/thermodynamics.hpp"
+  }
+  [+:after peos = new EquationOfState]
+    pthermo = new Thermodynamics(this, pin);
+  }
+  [+:in MeshBlock:~MeshBlock()] {
+    delete pthermo;
+  }
