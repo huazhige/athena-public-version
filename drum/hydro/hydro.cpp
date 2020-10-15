@@ -174,8 +174,7 @@ Hydro::~Hydro() {
   delete psbuf_;
 }
 
-void Hydro::CheckHydro()
-{
+void Hydro::CheckHydro() {
   MeshBlock *pmb = pmy_block->pmy_mesh->pblock;
   std::stringstream msg;
   int myrank = Globals::my_rank;
@@ -216,11 +215,10 @@ void Hydro::CheckHydro()
 // Ordering the meshblocks need to be worked out such that
 // the upper boundary executes before the lower boundary
 int TAG_TOPPRESSURE = 1111;
-void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop) {
-  MeshBlock *pmb = pmy_block;
-  int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
-  int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
-  int ssize = (je-js+1)*(ke-ks+1);
+void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop,
+  int kl, int ku, int jl, int ju) {
+  int ie = pmy_block->ie;
+  int ssize = (ju-jl+1)*(ku-kl+1);
 
   std::stringstream msg;
 #ifdef MPI_PARALLEL
@@ -229,7 +227,7 @@ void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nto
 
   if (ntop.snb.rank != Globals::my_rank) { // MPI boundary
 #ifdef MPI_PARALLEL
-    int tag = BoundaryBase::CreateBvalsMPITag(pmb->lid, TAG_TOPPRESSURE, ntop.bufid);
+    int tag = BoundaryBase::CreateBvalsMPITag(pmy_block->lid, TAG_TOPPRESSURE, ntop.bufid);
     MPI_Recv(buf, ssize, MPI_ATHENA_REAL, ntop.snb.rank, tag, MPI_COMM_WORLD, &status);
 #endif
   } else {  // local boundary
@@ -239,24 +237,23 @@ void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nto
     throw std::runtime_error(msg.str().c_str());
   }
   int p = 0;
-  BufferUtility::UnpackData(buf, psf, ie+1, ie+1, js, je, ks, ke, p);
+  BufferUtility::UnpackData(buf, psf, ie+1, ie+1, jl, ju, kl, ku, p);
 }
 
-void Hydro::SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot) {
-  MeshBlock *pmb = pmy_block;
-  int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
-  int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
+void Hydro::SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot,
+  int kl, int ku, int jl, int ju) {
+  int is = pmy_block->is;
   int ssize = 0;
 
-  BufferUtility::PackData(psf, buf, is, is, js, je, ks, ke, ssize);
+  BufferUtility::PackData(psf, buf, is, is, jl, ju, kl, ku, ssize);
   if (nbot.snb.rank != Globals::my_rank) { // MPI boundary
 #ifdef MPI_PARALLEL
-    int tag = BoundaryBase::CreateBvalsMPITag(nbot.lid, TAG_TOPPRESSURE, nbot.targetid);
+    int tag = BoundaryBase::CreateBvalsMPITag(nbot.snb.lid, TAG_TOPPRESSURE, nbot.targetid);
     MPI_Isend(buf, ssize, MPI_ATHENA_REAL, nbot.snb.rank, tag, MPI_COMM_WORLD,
       &req_send_bot_pressure_);
 #endif
   } else {  // local boundary
-    MeshBlock *pbl = pmb->pmy_mesh->FindMeshBlock(nbot.snb.gid);
+    MeshBlock *pbl = pmy_block->pmy_mesh->FindMeshBlock(nbot.snb.gid);
     std::memcpy(pbl->phydro->psbuf_, buf, ssize*sizeof(Real));
   }
 }

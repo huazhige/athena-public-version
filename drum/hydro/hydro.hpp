@@ -95,9 +95,11 @@ class Hydro {
   void CheckHydro();
 
 protected:
-  void SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot);
+  void SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot,
+    int kl, int ku, int jl, int ju);
   void WaitBotPressure();
-  void RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop);
+  void RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop,
+    int kl, int ku, int jl, int ju);
 
  private:
   AthenaArray<Real> dt1_, dt2_, dt3_;  // scratch arrays used in NewTimeStep

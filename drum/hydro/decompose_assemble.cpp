@@ -8,7 +8,7 @@
 #include "../globals.hpp"
 
 inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w, Coordinates *pco,
-  Real grav, int il, int iu, int jl, int ju, int kl, int ku)
+  Real grav, int kl, int ku, int jl, int ju, int il, int iu)
 {
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
@@ -21,7 +21,7 @@ inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w,
 }
 
 inline void IntegrateDownwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w, Coordinates *pco,
-  Real grav, int il, int iu, int jl, int ju, int kl, int ku)
+  Real grav, int kl, int ku, int jl, int ju, int il, int iu)
 {
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
@@ -61,7 +61,7 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   pthermo->PolytropicIndex(gamma_, w);
 
   if (has_top_neighbor)
-    RecvTopPressure(psf_, psbuf_, ntop);
+    RecvTopPressure(psf_, psbuf_, ntop, kl, ku, jl, ju);
   else {  // isothermal extrapolation to find the pressure at top boundary
     for (int k = kl; k <= ku; ++k)
       for (int j = jl; j <= ju; ++j) {
@@ -69,21 +69,21 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
         psf_(k,j,ie+1) = w(IPR,k,j,ie)*exp(grav*pco->dx1f(ie)/(2.*Rd*Tv));
       }
   }
-  IntegrateDownwards(psf_, w, pco, grav, is, ie, jl, ju, kl, ku);
+  IntegrateDownwards(psf_, w, pco, grav, kl, ku, jl, ju, is, ie);
   
   if (has_bot_neighbor)
-    SendBotPressure(psf_, psbuf_, nbot);
+    SendBotPressure(psf_, psbuf_, nbot, kl, ku, jl, ju);
 
   // integrate ghost cells
   if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::reflect)
-    IntegrateDownwards(psf_, w, pco, -grav, is - NGHOST, is-1, jl, ju, kl, ku);
+    IntegrateDownwards(psf_, w, pco, -grav, kl, ku, jl, ju, is - NGHOST, is-1);
   else  // block boundary
-    IntegrateDownwards(psf_, w, pco,  grav, is - NGHOST, is-1, jl, ju, kl, ku);
+    IntegrateDownwards(psf_, w, pco,  grav, kl, ku, jl, ju, is - NGHOST, is-1);
 
   if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::reflect)
-    IntegrateUpwards(psf_, w, pco, -grav, ie + 1, ie + NGHOST, jl, ju, kl, ku);
+    IntegrateUpwards(psf_, w, pco, -grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
   else  // block boundary
-    IntegrateUpwards(psf_, w, pco,  grav, ie + 1, ie + NGHOST, jl, ju, kl, ku);
+    IntegrateUpwards(psf_, w, pco,  grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
 
   // decompose pressure
   for (int k = kl; k <= ku; ++k)
