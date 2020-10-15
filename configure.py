@@ -38,12 +38,18 @@
 #   --include=path    use -Ipath when compiling
 #   --lib_path=path   use -Lpath when linking
 #   --lib=xxx         use -lxxx when linking
+
+#   -netcdf           enable NETCDF output (requires the NETCDF library)
+#   -pnetcdf          enable parallel-NETCDF output (requires the PNETCDF library)
+#   --netcdf_path=path  path to PNETCDF libraries (requires the PNETCDF library)
+#   --pnetcdf_path=path path to PNETCDF libraries (requires the PNETCDF library)
 # ----------------------------------------------------------------------------------------
 
 # Modules
 import argparse
 import glob
 import re
+import os
 
 
 # Set template and output filenames
@@ -51,6 +57,23 @@ makefile_input = 'Makefile.in'
 makefile_output = 'Makefile'
 defsfile_input = 'src/defs.hpp.in'
 defsfile_output = 'src/defs.hpp'
+
+#--- Step 0. Read patch structure if the patch file exists -------------------------------
+patch = []
+if os.path.isfile('patch_files'):
+  with open('patch_files', 'r') as file:
+    for line in file.readlines():
+      line = line.split()
+      if len(line) > 0 and line[0][0] != '#':
+        fname = os.path.basename(line[0])
+        pname = line[0][:line[0].find('/')]
+        dname = re.sub(pname, 'src', line[0][:-len(fname)])
+        lname = '%s/%s' % (dname, fname)
+        if os.path.islink(lname):
+          os.remove(lname)
+        elif os.path.isfile(lname):
+          os.rename(lname, lname + '.old')
+        os.system('ln -s %s/%s %s' % (os.getcwd(), line[0], lname))
 
 # --- Step 1. Prepare parser, add each of the arguments ------------------
 athena_description = (
@@ -212,6 +235,56 @@ parser.add_argument('--hdf5_path',
                     default='',
                     help='path to HDF5 libraries')
 
+# --chem=[name] argument
+parser.add_argument('--chem',
+                    default='OFF',
+                    choices=['OFF', 'kessler94'],
+                    help='select chemistry')
+
+# --nvapor=[value] argument
+parser.add_argument('--nvapor',
+                    default='0',
+                    help='set number of vapors')
+
+# --nphase==[value] argument
+parser.add_argument('--nphase',
+                    default='2',
+                    help='set number of phases for a gas')
+
+# --h2o=[value] argument
+parser.add_argument('--h2o',
+                    default='-1',
+                    help='water vapor id')
+
+# --nh3=[value] argument
+parser.add_argument('--nh3',
+                    default='-1',
+                    help='ammonia vapor id')
+
+# -netcdf argument
+parser.add_argument('-netcdf',
+                    action='store_true',
+                    default=False,
+                    help='enable NETCDF Output')
+
+# --netcdf_path argument
+parser.add_argument('--netcdf_path',
+                    type=str,
+                    default='',
+                    help='path to NETCDF libraries')
+
+# -pnetcdf argument
+parser.add_argument('-pnetcdf',
+                    action='store_true',
+                    default=False,
+                    help='enable parallel NETCDF Output')
+
+# --pnetcdf_path argument
+parser.add_argument('--pnetcdf_path',
+                    type=str,
+                    default='',
+                    help='path to parallel NETCDF libraries')
+
 # The main choices for --cxx flag, using "ctype[-suffix]" formatting, where "ctype" is the
 # major family/suite/group of compilers and "suffix" may represent variants of the
 # compiler version and/or predefined sets of compiler options. The C++ compiler front ends
@@ -356,6 +429,7 @@ makefile_options['LOADER_FLAGS'] = ''
 
 # --prob=[name] argument
 definitions['PROBLEM'] = makefile_options['PROBLEM_FILE'] = args['prob']
+makefile_options['PROBLEM'] = args['prob']
 
 # --coord=[name] argument
 definitions['COORDINATE_SYSTEM'] = makefile_options['COORDINATES_FILE'] = args['coord']
@@ -378,6 +452,22 @@ else:
     definitions['NHYDRO_VARIABLES'] = '5'
     if args['eos'] == 'general/eos_table':
         definitions['EOS_TABLE_ENABLED'] = '1'
+if int(args['nvapor']) == 0:
+  args['nphase'] = '1'
+definitions['NUMBER_VAPORS'] = args['nvapor']
+definitions['NUMBER_PHASES'] = args['nphase']
+definitions['NHYDRO_VARIABLES'] = str(int(definitions['NHYDRO_VARIABLES']) 
+                                    + int(args['nphase'])*int(args['nvapor']))
+definitions['WATER_VAPOR_ID'] = args['h2o']
+definitions['AMMONIA_VAPOR_ID'] = args['nh3']
+
+# --chem=[name] argument
+if args['chem'] != 'OFF':
+  definitions['CHEMISTRY'] = args['chem']
+  makefile_options['CHEM_FILE'] = 'src/chemistry/' + args['chem'] + '.cpp'
+else:
+  definitions['CHEMISTRY'] = 'OFF'
+  makefile_options['CHEM_FILE'] = ''
 
 # --flux=[name] argument
 definitions['RSOLVER'] = makefile_options['RSOLVER_FILE'] = args['flux']
@@ -455,8 +545,8 @@ if args['cxx'] == 'g++':
     definitions['COMPILER_COMMAND'] = makefile_options['COMPILER_COMMAND'] = 'g++'
     makefile_options['PREPROCESSOR_FLAGS'] = ''
     makefile_options['COMPILER_FLAGS'] = '-O3 -std=c++11'
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'g++-simd':
     # GCC version >= 4.9, for OpenMP 4.0; version >= 6.1 for OpenMP 4.5 support
     definitions['COMPILER_CHOICE'] = 'g++-simd'
@@ -471,8 +561,8 @@ if args['cxx'] == 'g++-simd':
         # -mprefer-avx128
         # -m64 (default)
     )
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'icpc':
     # ICC is C++11 feature-complete since v15.0 (2014-08-26)
     definitions['COMPILER_CHOICE'] = 'icpc'
@@ -483,8 +573,8 @@ if args['cxx'] == 'icpc':
       '-qoverride-limits'  # -qopt-report-phase=ipo (does nothing without -ipo)
     )
     # -qopt-zmm-usage=high'  # typically harms multi-core performance on Skylake Xeon
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'icpc-debug':
     # Disable IPO, forced inlining, and fast math. Enable vectorization reporting.
     # Useful for testing symmetry, SIMD-enabled functions and loops with OpenMP 4.5
@@ -495,8 +585,8 @@ if args['cxx'] == 'icpc-debug':
       '-O3 -std=c++11 -xhost -qopenmp-simd -fp-model precise -qopt-prefetch=4 '
       '-qopt-report=5 -qopt-report-phase=openmp,vec -g -qoverride-limits'
     )
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'icpc-phi':
     # Cross-compile for Intel Xeon Phi x200 KNL series (unique AVX-512ER and AVX-512FP)
     # -xMIC-AVX512: generate AVX-512F, AVX-512CD, AVX-512ER and AVX-512FP
@@ -507,8 +597,8 @@ if args['cxx'] == 'icpc-phi':
       '-O3 -std=c++11 -ipo -xMIC-AVX512 -inline-forceinline -qopenmp-simd '
       '-qopt-prefetch=4 -qoverride-limits'
     )
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'cray':
     # Cray Compiling Environment 8.4 (2015-09-24) introduces C++11 feature completeness
     # (except "alignas"). v8.6 is C++14 feature-complete
@@ -544,8 +634,8 @@ if args['cxx'] == 'clang++':
     definitions['COMPILER_COMMAND'] = makefile_options['COMPILER_COMMAND'] = 'clang++'
     makefile_options['PREPROCESSOR_FLAGS'] = ''
     makefile_options['COMPILER_FLAGS'] = '-O3 -std=c++11'
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'clang++-simd':
     # LLVM/Clang version >= 3.9 for most of OpenMP 4.0 and 4.5 (still incomplete; no
     # offloading, target/declare simd directives). OpenMP 3.1 fully supported in LLVM 3.7
@@ -553,16 +643,16 @@ if args['cxx'] == 'clang++-simd':
     definitions['COMPILER_COMMAND'] = makefile_options['COMPILER_COMMAND'] = 'clang++'
     makefile_options['PREPROCESSOR_FLAGS'] = ''
     makefile_options['COMPILER_FLAGS'] = '-O3 -std=c++11 -fopenmp-simd'
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 if args['cxx'] == 'clang++-apple':
     # Apple LLVM/Clang: forked version of the open-source LLVM project bundled in macOS
     definitions['COMPILER_CHOICE'] = 'clang++-apple'
     definitions['COMPILER_COMMAND'] = makefile_options['COMPILER_COMMAND'] = 'clang++'
     makefile_options['PREPROCESSOR_FLAGS'] = ''
     makefile_options['COMPILER_FLAGS'] = '-O3 -std=c++11'
-    makefile_options['LINKER_FLAGS'] = ''
-    makefile_options['LIBRARY_FLAGS'] = ''
+    makefile_options['LINKER_FLAGS'] = '-Lsrc/math'
+    makefile_options['LIBRARY_FLAGS'] = '-lclimath'
 
 # -float argument
 if args['float']:
@@ -735,6 +825,28 @@ if args['h5double']:
 else:
     definitions['H5_DOUBLE_PRECISION_ENABLED'] = '0'
 
+# -netcdf argument
+if args['netcdf']:
+  definitions['NETCDF_OPTION'] = 'NETCDFOUTPUT'
+  if args['netcdf_path'] != '':
+    makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['netcdf_path']
+    makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['netcdf_path']
+  if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+    makefile_options['LIBRARY_FLAGS'] += ' -lnetcdf'
+else:
+  definitions['NETCDF_OPTION'] = 'NO_NETCDFOUTPUT'
+
+# -pnetcdf argument
+if args['pnetcdf']:
+  definitions['PNETCDF_OPTION'] = 'PNETCDFOUTPUT'
+  if args['pnetcdf_path'] != '':
+    makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['pnetcdf_path']
+    makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['pnetcdf_path']
+  if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+    makefile_options['LIBRARY_FLAGS'] += ' -lpnetcdf'
+else:
+  definitions['PNETCDF_OPTION'] = 'NO_PNETCDFOUTPUT'
+
 # --cflag=[string] argument
 if args['cflag'] is not None:
     makefile_options['COMPILER_FLAGS'] += ' '+args['cflag']
@@ -759,6 +871,7 @@ definitions['COMPILER_FLAGS'] = ' '.join(
 # --- Step 4. Create new files, finish up --------------------------------
 
 # Terminate all filenames with .cpp extension
+makefile_options['PROBLEM'] += '.ex'
 makefile_options['PROBLEM_FILE'] += '.cpp'
 makefile_options['COORDINATES_FILE'] += '.cpp'
 makefile_options['EOS_FILE'] += '.cpp'
@@ -796,8 +909,13 @@ print('Your Athena++ distribution has now been configured with the following opt
 print('  Problem generator:          ' + args['prob'])
 print('  Coordinate system:          ' + args['coord'])
 print('  Equation of state:          ' + args['eos'])
+print('  Ammonia vapor id:           ' + args['nh3'])
+print('  Water vapor id:             ' + args['h2o'])
 print('  Riemann solver:             ' + args['flux'])
+print('  Chemistry:                  ' + args['chem'])
 print('  Magnetic fields:            ' + ('ON' if args['b'] else 'OFF'))
+print('  Number of vapors:           ' + args['nvapor'])
+print('  Number of phases:           ' + args['nphase'])
 print('  Number of scalars:          ' + args['nscalars'])
 print('  Special relativity:         ' + ('ON' if args['s'] else 'OFF'))
 print('  General relativity:         ' + ('ON' if args['g'] else 'OFF'))
@@ -817,6 +935,8 @@ print('  FFT:                        ' + ('ON' if args['fft'] else 'OFF'))
 print('  HDF5 output:                ' + ('ON' if args['hdf5'] else 'OFF'))
 if args['hdf5']:
     print('  HDF5 precision:             ' + ('double' if args['h5double'] else 'single'))
+print('  NETCDF output:              ' + ('ON' if args['netcdf'] else 'OFF'))
+print('  PNETCDF output:             ' + ('ON' if args['pnetcdf'] else 'OFF'))
 print('  Compiler:                   ' + args['cxx'])
 print('  Compilation command:        ' + makefile_options['COMPILER_COMMAND'] + ' '
       + makefile_options['PREPROCESSOR_FLAGS'] + ' ' + makefile_options['COMPILER_FLAGS'])

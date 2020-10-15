@@ -10,6 +10,7 @@ GENERAL_EOS_FILE = @GENERAL_EOS_FILE@
 RSOLVER_FILE = @RSOLVER_FILE@
 RSOLVER_DIR = @RSOLVER_DIR@
 MPIFFT_FILE = @MPIFFT_FILE@
+MATH_LIBRARY = src/math/libclimath.a
 
 # General compiler specifications
 
@@ -23,7 +24,7 @@ GCOV_CMD := @GCOV_COMMAND@
 # Preliminary definitions
 
 EXE_DIR := bin/
-EXECUTABLE := $(EXE_DIR)athena
+EXECUTABLE := $(EXE_DIR)@PROBLEM@
 SRC_FILES := $(wildcard src/*.cpp) \
 	     $(wildcard src/bvals/*.cpp) \
 	     $(wildcard src/bvals/cc/*.cpp) \
@@ -55,6 +56,7 @@ SRC_FILES := $(wildcard src/*.cpp) \
 	     $(wildcard src/scalars/*.cpp) \
 	     $(wildcard src/task_list/*.cpp) \
 	     $(wildcard src/utils/*.cpp) \
+       $(wildcard src/thermodynamics/*.cpp) \
 	     $(MPIFFT_FILE)
 OBJ_DIR := obj/
 OBJ_FILES := $(addprefix $(OBJ_DIR),$(notdir $(SRC_FILES:.cpp=.o)))
@@ -90,8 +92,11 @@ $(OBJ_DIR):
 
 # Link objects into executable
 
-$(EXECUTABLE) : $(OBJ_FILES)
+$(EXECUTABLE) : $(OBJ_FILES) $(MATH_LIBRARY)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS) $(LDLIBS)
+
+$(MATH_LIBRARY):
+	make -C src/math CC=$(CXX)
 
 # Create objects from source files
 

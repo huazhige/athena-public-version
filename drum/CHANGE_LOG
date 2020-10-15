@@ -1,0 +1,655 @@
+10/11/2020: Start merging from snap110f to athena19a
+
+configure.py
+  == STAGE 1 ==
+  # Remove eigen and fits dependence
+  [+:after --hdf5_path=path path to FFTW libraries] {
+    #   -netcdf           enable NETCDF output (requires the NETCDF library)
+    #   -pnetcdf          enable parallel-NETCDF output (requires the PNETCDF library)
+    #   --netcdf_path=path  path to PNETCDF libraries (requires the PNETCDF library)
+    #   --pnetcdf_path=path path to PNETCDF libraries (requires the PNETCDF library)
+  }
+  [+:in header] {
+    import os
+  }
+  [+:after defsfile_output = 'src/defs.hpp'] {
+    #--- Step 0. Read patch structure if the patch file exists -------------------------------
+    patch = []
+    if os.path.isfile('patch_files'):
+      with open('patch_files', 'r') as file:
+        for line in file.readlines():
+          line = line.split()
+          if len(line) > 0 and line[0][0] != '#':
+            fname = os.path.basename(line[0])
+            pname = line[0][:line[0].find('/')]
+            dname = re.sub(pname, 'src', line[0][:-len(fname)])
+            lname = '%s/%s' % (dname, fname)
+            if os.path.islink(lname):
+              os.remove(lname)
+            elif os.path.isfile(lname):
+              os.rename(lname, lname + '.old')
+            os.system('ln -s %s/%s %s' % (os.getcwd(), line[0], lname))
+  }
+  [+:after help='path to HDF5 libraries'] {
+    # --nvapor=[value] argument
+    parser.add_argument('--nvapor',
+                        default='0',
+                        help='set number of vapors')
+
+    # --nphase==[value] argument
+    parser.add_argument('--nphase',
+                        default='2',
+                        help='set number of phases for a gas')
+
+    # --h2o=[value] argument
+    parser.add_argument('--h2o',
+                        default='-1',
+                        help='water vapor id')
+
+    # --nh3=[value] argument
+    parser.add_argument('--nh3',
+                        default='-1',
+                        help='ammonia vapor id')
+
+    # -netcdf argument
+    parser.add_argument('-netcdf',
+                        action='store_true',
+                        default=False,
+                        help='enable NETCDF Output')
+
+    # --netcdf_path argument
+    parser.add_argument('--netcdf_path',
+                        type=str,
+                        default='',
+                        help='path to NETCDF libraries')
+
+    # -pnetcdf argument
+    parser.add_argument('-pnetcdf',
+                        action='store_true',
+                        default=False,
+                        help='enable parallel NETCDF Output')
+
+    # --pnetcdf_path argument
+    parser.add_argument('--pnetcdf_path',
+                        type=str,
+                        default='',
+                        help='path to parallel NETCDF libraries')
+  }
+  [+:after definitions['PROBLEM']] {
+    makefile_options['PROBLEM'] = args['prob']
+  }
+  [+:after definitions['EOS_TABLE_ENABLED'] = '1'] {
+    if int(args['nvapor']) == 0:
+      args['nphase'] = '1'
+    definitions['NUMBER_VAPORS'] = args['nvapor']
+    definitions['NUMBER_PHASES'] = args['nphase']
+    definitions['NHYDRO_VARIABLES'] = str(int(definitions['NHYDRO_VARIABLES']) 
+                                        + int(args['nphase'])*int(args['nvapor']))
+    definitions['WATER_VAPOR_ID'] = args['h2o']
+    definitions['AMMONIA_VAPOR_ID'] = args['nh3']
+
+    # --chem=[name] argument
+    if args['chem'] != 'OFF':
+      definitions['CHEMISTRY'] = args['chem']
+      makefile_options['CHEM_FILE'] = 'src/chemistry/' + args['chem'] + '.cpp'
+    else:
+      definitions['CHEMISTRY'] = 'OFF'
+      makefile_options['CHEM_FILE'] = ''
+  }
+  [r:all makefile_options['LINKER_FLAGS']] {
+    '' -> '-Lsrc/math'
+  }
+  [r:all makefile_options['LIBRARY_FLAGS']] {
+    '' -> '-lclimath'
+  }
+  [+:after definitions['H5_DOUBLE_PRECISION_ENABLED']] {
+    # -netcdf argument
+    if args['netcdf']:
+      definitions['NETCDF_OPTION'] = 'NETCDFOUTPUT'
+      if args['netcdf_path'] != '':
+        makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['netcdf_path']
+        makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['netcdf_path']
+      if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+        makefile_options['LIBRARY_FLAGS'] += ' -lnetcdf'
+    else:
+      definitions['NETCDF_OPTION'] = 'NO_NETCDFOUTPUT'
+
+    # -pnetcdf argument
+    if args['pnetcdf']:
+      definitions['PNETCDF_OPTION'] = 'PNETCDFOUTPUT'
+      if args['pnetcdf_path'] != '':
+        makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['pnetcdf_path']
+        makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['pnetcdf_path']
+      if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+        makefile_options['LIBRARY_FLAGS'] += ' -lpnetcdf'
+    else:
+      definitions['PNETCDF_OPTION'] = 'NO_PNETCDFOUTPUT'
+  }
+  [+:before makefile_options['PROBLEM_FILE'] += '.cpp'] {
+    makefile_options['PROBLEM'] += '.ex'
+  }
+  [+:after print('  Equation of state] {
+    print('  Ammonia vapor id:           ' + args['nh3'])
+    print('  Water vapor id:             ' + args['h2o'])
+    print('  Chemistry:                  ' + args['chem'])
+  }
+  [+:before print('  Number of scalars] {
+    print('  Number of vapors:           ' + args['nvapor'])
+    print('  Number of phases:           ' + args['nphase'])
+  }
+  [+:after print('  HDF5 precision] {
+    print('  NETCDF output:              ' + ('ON' if args['netcdf'] else 'OFF'))
+    print('  PNETCDF output:             ' + ('ON' if args['pnetcdf'] else 'OFF'))
+  }
+  == STAGE 2 ==
+
+defs.hpp.in
+  [+:after @HDF5_OPTION@] {
+    // NETCDF output (NETCDFOUTPUT or NO_NETCDFOUTPUT)
+    #define @NETCDF_OPTION@
+
+    // PNETCDF output (PNETCDFOUTPUT or NO_PNETCDFOUTPUT)
+    #define @PNETCDF_OPTION@
+  }
+  [+:after MAX_NREGISTER] {
+    #define NVAPOR @NUMBER_VAPORS@
+    #define NPHASE @NUMBER_PHASES@
+
+    //----------------------------------------------------------------------------------------
+    // specific molecule ids
+    #define WATER_VAPOR_ID  @WATER_VAPOR_ID@
+    #define AMMONIA_VAPOR_ID  @AMMONIA_VAPOR_ID@
+  }
+
+Makefile.in:
+  == STAGE 1 ==
+  [+:after MPIFFT_FILE = @MPIFFT_FILE@] {
+    MATH_LIBRARY = src/math/libclimath.a
+  }
+  [r:1 EXECUTABLE] {
+    athena -> @PROBLEM@
+  }
+  [+:after $(wildcard src/utils/*.cpp)] {
+    $(wildcard src/thermodynamics/*.cpp) \
+  }
+  [r:1 $(EXECUTABLE)] {
+    $(OBJ_FILES) -> $(OBJ_FILES) $(MATH_LIBRARY)
+  }
+  [+:after $(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS) $(LDLIBS)] {
+    $(MATH_LIBRARY):
+      make -C src/math CC=$(CXX)
+  }
+
+athena.hpp
+  [+:before enum ConsIndex] {
+    enum {NMASS = 1+NPHASE*NVAPOR};
+  }
+  [r:1 enum ConsIndex] {
+    IM1=1, IM2=2, IM3=3, IEN=4 -> IM1=NMASS, IM2=1+NMASS, IM3=2+NMASS, IEN=3+NMASS
+  }
+  [-:2 enum PrimIndex]
+  [+:after array indices for 1D primitives] {
+  enum PrimIndex {IVX=NMASS, IVY=1+NMASS, IVZ=2+NMASS, IPR=3+NMASS, 
+    IBY=(NHYDRO), IBZ=((NHYDRO)+1), IV1=IVX, IV2=IVY, IV3=IVZ};
+  }
+
+athena_arrays.hpp
+  [+:in header/Athena++] {
+    #include "stride_iterator.hpp"
+  }
+  [+:before private] {
+    // access stride iterator
+    StrideIterator<T*> at(int i) const {
+      return StrideIterator<T*>(pdata_ + i, nx1_);
+    }
+
+    StrideIterator<T*> at(int j, int i) const {
+      return StrideIterator<T*>(pdata_ + i + nx1_*j, nx1_*nx2_);
+    }
+
+    StrideIterator<T*> at(int k, int j, int i) const {
+      return StrideIterator<T*>(pdata_ + i + nx1_*j + nx1_*nx2_*k, nx1_*nx2_*nx3_);
+    }
+  }
+
+stride_iterator.hpp:
+  [c:]
+
+math/:
+  [c:]
+
+utils/utisl.hpp:
+  == STAGE 1 ==
+  [+:in header/C] {
+    #include <vector>
+    #include <string>
+    #include <cstring>
+    #include <iostream>
+    #include <fstream>
+    #include <sstream>
+  }
+
+  [+:before EOF/endif] {
+    //! test file existance
+    bool IsFileExist(std::string fname);
+
+    //! test a blank line
+    bool IsBlankLine(char const* line);
+    bool IsBlankLine(std::string const& line);
+
+    //! decomment a file
+    std::string DecommentFile(std::string fname);
+
+    //! get number of columns in a data table
+    int GetNumCols(std::string fname, char c = ' ');
+
+    //! get number of rows in a data table 
+    int GetNumRows(std::string fname);
+
+    //! split a string to a vector
+    template<typename A>
+    std::vector<A> Vectorize(const char* cstr)
+    {
+      std::vector<A> arr;
+      char str[1028], *p;
+      strcpy(str, cstr);
+      p = std::strtok(str, " ");
+      while (p != NULL) {
+        arr.push_back(static_cast<A>(std::stof(p)));
+        p = std::strtok(NULL, " ");
+      }
+      return arr;
+    }
+
+    template<>
+    std::vector<std::string> Vectorize(const char* cstr);
+
+    //! replace a character in a string
+    void ReplaceChar(char* buf, char c_old, char c_new);
+
+    template<typename T>
+    void NewCArray(T** &a, int n1, int n2)
+    {
+      a = new T* [n1];
+      a[0] = new T [n1*n2];
+
+      for (int i = 0; i < n1; ++i)
+        a[i] = a[0] + i*n2;
+    }
+
+    template<typename T>
+    void FreeCArray(T **a)
+    {
+      delete[] a[0];
+      delete[] a;
+    }
+
+    template<typename T>
+    void NewCArray(T*** &a, int n1, int n2, int n3)
+    {
+      a = new T** [n1];
+      a[0] = new T* [n1*n2];
+      a[0][0] = new T [n1*n2*n3];
+
+      for (int i = 0; i < n1; ++i) {
+        a[i] = a[0] + i*n2;
+        for (int j = 0; j < n2; ++j)
+          a[i][j] = a[0][0] + i*n2*n3 + j*n3;
+      }
+    }
+
+    template<typename T>
+    void FreeCArray(T ***a)
+    {
+      delete[] a[0][0];
+      delete[] a[0];
+      delete[] a;
+    }
+
+    char* StripLine(char *line);
+    char* NextLine(char *line, int num, FILE* stream);
+    void ReadTabular(char const *fname, double** data, int *rows, int *cols);
+  }
+utils/utils.cpp:
+  [c:]
+utils/read_table.cpp:
+  [c:]
+
+mesh/mesh.hpp
+  [+:in forward_declaration] {
+    class Thermodynamics;
+  }
+  [+:after EquationOfState *peos] {
+    Thermodynamics *pthermo;
+  }
+mesh/mesh.cpp
+  [+:after pmb->pbval->CheckUserBoundaries()] {
+    pmb->phydro->CheckHydro();
+  }
+mesh/meshblock.cpp
+  [+:in header/Athena++] {
+    #include "../thermodynamics/thermodynamics.hpp"
+  }
+  [+:after peos = new EquationOfState]
+    pthermo = new Thermodynamics(this, pin);
+  }
+  [+:in MeshBlock:~MeshBlock()] {
+    delete pthermo;
+  }
+
+output/output.hpp
+  [+:after std::string type] {
+    std::string grid;        // (CCC,CCF,CFC,...)
+  }
+  [r:1 OutputData()] {
+    pnext(nullptr),  pprev(nullptr) -> grid("CCC"), pnext(nullptr),  pprev(nullptr)
+  }
+  [+:after WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag)] {
+    virtual void CombineBlocks() {};
+  }
+  [+:before EOF] {
+    //----------------------------------------------------------------------------------------
+    //! \class NetcdfOutput
+    //  \brief derived OutputType class for Netcdf dumps
+
+    class NetcdfOutput : public OutputType {
+    public:
+      NetcdfOutput(OutputParameters oparams);
+      ~NetcdfOutput() {};
+      void WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag);
+      void CombineBlocks();
+    };
+
+    //----------------------------------------------------------------------------------------
+    //! \class PnetcdfOutput
+    //  \brief derived OutputType class for parallel Netcdf dumps
+
+    class PnetcdfOutput : public OutputType {
+    public:
+      PnetcdfOutput(OutputParameters oparams);
+      ~PnetcdfOutput() {};
+      void WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag);
+    };
+
+    //----------------------------------------------------------------------------------------
+  }
+output/output.cpp
+  [+:after op.file_type.compare("hdf5")|#endif] {
+        } else if (op.file_type.compare("netcdf") == 0) {
+    #ifdef NETCDFOUTPUT
+          pnew_type = new NetcdfOutput(op);
+    #else
+          msg << "### FATAL ERROR in Outputs constructor" << std::endl
+              << "Executable not configured for NETCDF outputs, but NETCDF file format "
+              << "is requested in output block '" << op.block_name << "'" << std::endl;
+          ATHENA_ERROR(msg);
+    #endif
+        } else if (op.file_type.compare("pnetcdf") == 0) {
+    #ifdef PNETCDFOUTPUT
+          pnew_type = new PnetcdfOutput(op);
+    #else
+          msg << "### FATAL ERROR in Outputs constructor" << std::endl
+              << "Executable not configured for PNETCDF outputs, but PNETCDF file format "
+              << "is requested in output block '" << op.block_name << "'" << std::endl;
+          ATHENA_ERROR(msg);
+    #endif
+  }
+  [+:before throw an error if output variable name not recognized] {
+    // vapor
+    if (NVAPOR > 0) {
+      if (output_params.variable.compare("prim") == 0 ||
+          output_params.variable.compare("vapor") == 0) {
+        pod = new OutputData;
+        pod->type = "VECTORS";
+        pod->name = "vapor";
+        pod->data.InitWithShallowSlice(phyd->w,4,1,NVAPOR);
+        AppendOutputDataNode(pod);
+        num_vars_+=NVAPOR;
+      }
+
+      if (output_params.variable.compare("cons") == 0) {
+        pod = new OutputData;
+        pod->type = "VECTORS";
+        pod->name = "vapor";
+        pod->data.InitWithShallowSlice(phyd->u,4,1,NVAPOR);
+        AppendOutputDataNode(pod);
+        num_vars_+=NVAPOR;
+      }
+    }
+
+    // cloud
+    if (NVAPOR > 0) {
+      std::string str = "cloud?";
+      for (int i = 1; i < NPHASE; ++i) {
+        if (output_params.variable.compare("prim") == 0 ||
+            output_params.variable.compare("cloud") == 0) {
+          pod = new OutputData;
+          pod->type = "VECTORS";
+          char c = '1' + i - 1;
+          pod->name = str + c;
+          pod->data.InitWithShallowSlice(phyd->w,4,1+i*NVAPOR,NVAPOR);
+          AppendOutputDataNode(pod);
+          num_vars_+=NVAPOR;
+        }
+
+        if (output_params.variable.compare("cons") == 0) {
+          pod = new OutputData;
+          pod->type = "VECTORS";
+          char c = '1' + i - 1;
+          pod->name = str + c;
+          pod->data.InitWithShallowSlice(phyd->u,4,1+i*NVAPOR,NVAPOR);
+          AppendOutputDataNode(pod);
+          num_vars_+=NVAPOR;
+        }
+      }
+    }
+  }
+  [+:after ptype->WriteOutputFile(pm, pin, wtflag)] {
+    ptype->CombineBlocks();
+  }
+output/history.cpp
+  [-:8 hst_data[0] += vol(i)*u_d]
+  [+:after Real& u_mz = phyd->u(IM3,k,j,i)] {
+    int n = 0;
+    for (; n < NMASS; ++n)
+      hst_data[n] += vol(i)*phyd->u(n,k,j,i);
+    hst_data[n++] += vol(i)*u_mx;
+    hst_data[n++] += vol(i)*u_my;
+    hst_data[n++] += vol(i)*u_mz;
+    hst_data[n++] += vol(i)*0.5*SQR(u_mx)/u_d;
+    hst_data[n++] += vol(i)*0.5*SQR(u_my)/u_d;
+    hst_data[n++] += vol(i)*0.5*SQR(u_mz)/u_d;
+  }
+  [r:1 hst_data[7] += vol(i)*u_e] {
+    hst_data[n++] += vol(i)*u_e;
+  }
+  [-:1 std::fprintf(pfile,"[%d]=mass]
+  [+:after std::fprintf(pfile,"[%d]=dt] {
+    for (int n = 0; n < NMASS; ++n)
+      fprintf(pfile,"[%d]=mass-%d   ", iout++, n);
+  }
+output/formatted_table.cpp
+  [r:1 for (int index = 1; index <= 3; ++index)] {
+    3 -> pdata->data.GetDim4()
+  }
+output/pnetcdf.cpp
+  [c:]
+output/netcdf.cpp
+  [c:]
+output/mppnccombine.cpp
+  [c:]
+output/combne_blocks.cpp
+  [c:]
+
+hydro/hydro.hpp
+  [+:in header/C] {
+    // MPI headers
+    #ifdef MPI_PARALLEL
+      #include <mpi.h>
+    #endif
+  }
+  [+:before private:] {
+    ~Hydro();
+    void DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int ju);
+    void AssemblePressure(AthenaArray<Real> &w, AthenaArray<Real> &wl, AthenaArray<Real> &wr,
+      int k, int j, int il, int iu);
+    void CheckHydro();
+
+  protected:
+    void SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot);
+    void WaitBotPressure();
+    void RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop);
+  }
+  [+:before EOF/#endif/};] {
+    // pressure decomposition
+    AthenaArray<Real> psf_;         // hydrostatic pressure at cell face
+    AthenaArray<Real> psv_;         // hydrostatic pressure at cell center
+    Real *psbuf_;                   // hydrostatic pressure buffer
+    AthenaArray<Real> gamma_;       // local polytropic index
+
+  #ifdef MPI_PARALLEL
+    MPI_Request req_send_bot_pressure_;
+  #endif
+  }
+  # Implicit has not been implemented
+hydro/hydro.cpp
+  [+:in header/C] {
+    #include <sstream>
+  }
+  [+:in header/Athena++] {
+    #include ../globals.hpp
+  }
+  [+:after pmb->pmy_mesh->UserTimeStep_] {
+    // allocate hydrostatic and nonhydrostatic pressure
+    psf_.NewAthenaArray(nc3, nc2, nc1 + 1);
+    psv_.NewAthenaArray(nc3, nc2, nc1);
+    psbuf_ = new Real [nc3*nc2];
+
+    // allocate local polytropic index
+    gamma_.NewAthenaArray(nc3, nc2, nc1);
+  }
+  [+:before EOF] {
+    Hydro::~Hydro() {
+      delete psbuf_;
+    }
+
+    void Hydro::CheckHydro()
+    {
+      MeshBlock *pmb = pmy_block->pmy_mesh->pblock;
+      std::stringstream msg;
+      int myrank = Globals::my_rank;
+
+      for (int k = pmb->ks; k <= pmb->ke; ++k)
+        for (int j = pmb->js; j <= pmb->je; ++j)
+          for (int i = pmb->is; i <= pmb->ie; ++i) {
+            if (w(IDN,k,j,i) < 0.) {
+              msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
+                  << "Density is negative at position ("
+                  << k << "," << j << "," << i << ") in rank " << myrank;
+              ATHENA_ERROR(msg);
+            }
+            if (w(IPR,k,j,i) < 0.) {
+              msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
+                  << "Pressure is negative at position ("
+                  << k << "," << j << "," << i << ") in rank " << myrank;
+              ATHENA_ERROR(msg);
+            }
+            Real temp = pmb->pthermo->Temp(w.at(k,j,i));
+            Real grav = -hsrc.GetG1();
+            if (grav != 0) {
+              Real Tmin = 2.*grav*pmb->pcoord->dx1f(i)/pmb->pthermo->GetRd();
+              if (temp < Tmin) {
+                msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
+                    << "Vertical spacing is less than half scale height at position ("
+                    << k << "," << j << "," << i << ") in rank " << myrank << std::endl
+                    << "Minimum allowed temperature is " << Tmin << " K";
+                ATHENA_ERROR(msg);
+              }
+            }
+          }
+      if (myrank == 0)
+        std::cout << "Hydro check passed." << std::endl;
+    }
+
+    // FIXME: local boundary has not been implemented
+    // Ordering the meshblocks need to be worked out such that
+    // the upper boundary executes before the lower boundary
+    int TAG_TOPPRESSURE = 1111;
+    void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop) {
+      MeshBlock *pmb = pmy_block;
+      int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
+      int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
+      int ssize = (je-js+1)*(ke-ks+1);
+
+      std::stringstream msg;
+    #ifdef MPI_PARALLEL
+      MPI_Status status;
+    #endif
+
+      if (ntop.snb.rank != Globals::my_rank) { // MPI boundary
+    #ifdef MPI_PARALLEL
+        int tag = BoundaryBase::CreateBvalsMPITag(pmb->lid, TAG_TOPPRESSURE, ntop.bufid);
+        MPI_Recv(buf, ssize, MPI_ATHENA_REAL, ntop.snb.rank, tag, MPI_COMM_WORLD, &status);
+    #endif
+      } else {  // local boundary
+        // need to wait for the top boundary to finish
+        msg << "### FATAL ERROR in Hydro::RecvTopPressure" << std::endl
+            << "Local boundary not yet implemented" << std::endl;
+        throw std::runtime_error(msg.str().c_str());
+      }
+      int p = 0;
+      BufferUtility::UnpackData(buf, psf, ie+1, ie+1, js, je, ks, ke, p);
+    }
+
+    void Hydro::SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot) {
+      MeshBlock *pmb = pmy_block;
+      int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
+      int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
+      int ssize = 0;
+
+      BufferUtility::PackData(psf, buf, is, is, js, je, ks, ke, ssize);
+      if (nbot.snb.rank != Globals::my_rank) { // MPI boundary
+    #ifdef MPI_PARALLEL
+        int tag = BoundaryBase::CreateBvalsMPITag(nbot.lid, TAG_TOPPRESSURE, nbot.targetid);
+        MPI_Isend(buf, ssize, MPI_ATHENA_REAL, nbot.snb.rank, tag, MPI_COMM_WORLD,
+          &req_send_bot_pressure_);
+    #endif
+      } else {  // local boundary
+        MeshBlock *pbl = pmb->pmy_mesh->FindMeshBlock(nbot.snb.gid);
+        std::memcpy(pbl->phydro->psbuf_, buf, ssize*sizeof(Real));
+      }
+    }
+
+    void Hydro::WaitBotPressure() {
+    #ifdef MPI_PARALLEL
+      MPI_Status status;
+      MPI_Wait(&req_send_bot_pressure_, &status);
+    #endif
+    }
+  }
+hydro/calculate_fluxes.cpp
+  [+:before,1 for (int k=kl; k<=ku; ++k)] {
+    // decompose pressure to pertubation pressure and hydrostatic pressure
+    DecomposePressure(w, kl, ku, jl, ju);
+  }
+  [+:before,1 pmb->pcoord->CenterWidth1] {
+    // assemble pressure pertubation
+    AssemblePressure(w, wl_, wr_, k, j, is-1, ie+1);
+  }
+hydro/decompose_assemble.cpp
+  # Source term API was changed: psrc -> hsrc
+  # (deprecated) INNTER_X1 -> inner_x1
+  # (deprecated) OUTER_X1 -> outer_x1
+  # (deprecated) REFLECTING -> BoundaryFlag::reflect
+  # (deprecated) OUTFLOW -> BoundaryFlag::outflow
+  # ntop.type -> ntop.ni.type
+  # nbot.type -> nbot.ni.type
+  # nbot.rank -> nbot.snb.rank
+  # wl(IPR,k,j,i) -> wl(IPR,i)
+  # NEIGHBOR_NONE -> NeighborConnect::none
+  [c:]
+
+thermodynamics/
+  [c:]
+
+Run straka test ... 
