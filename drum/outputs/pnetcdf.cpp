@@ -185,7 +185,7 @@ void PnetcdfOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag)
     int nf1 = pb->ie - pb->is + 2*NGHOST;
     int nf2 = pb->je - pb->js + 2*NGHOST;
     int nf3 = pb->ke - pb->ks + 2*NGHOST;
-    max_ncells  = _max(max_ncells,  nf1*nf2*nf3);
+    max_ncells  = std::max(max_ncells,  nf1*nf2*nf3);
     nmb++;  // number of meshblocks this rank
     pb = pb->next;
   }
@@ -206,7 +206,8 @@ void PnetcdfOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag)
   ERR
 
   // Loop over MeshBlocks
-  do {
+  //do {
+  while (pmb != nullptr) {
     // set start/end array indices depending on whether ghost zones are included
     out_is=pmb->is; out_ie=pmb->ie;
     out_js=pmb->js; out_je=pmb->je;
@@ -331,7 +332,9 @@ void PnetcdfOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag)
 
     ClearOutputData();  // required when LoadOutputData() is used.
     pmb = pmb->next;
-  } while (LoadOutputData(pmb));   // end loop over MeshBLocks
+    if (pmb != nullptr) LoadOutputData(pmb);
+  }
+  //} while (LoadOutputData(pmb));   // end loop over MeshBLocks
 
   // 7. wait for all writings to complete
   ncmpi_wait_all(ifile, nbufs, reqs, stts);
