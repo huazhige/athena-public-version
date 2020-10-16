@@ -6,6 +6,7 @@
 #include "../coordinates/coordinates.hpp"
 #include "../thermodynamics/thermodynamics.hpp"
 #include "../globals.hpp"
+#include "../reconstruct/interpolation.hpp"
 
 inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w, Coordinates *pco,
   Real grav, int kl, int ku, int jl, int ju, int il, int iu)
@@ -103,21 +104,35 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
         w(IPR,k,j,i) -= psv_(k,j,i);  
       }
 
-      /* 2. adjust bottom boundary condition
+      // 2. adjust bottom boundary condition
       if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
         for (int i = is - NGHOST; i < is; ++i) {
           w(IDN,k,j,i) = w(IDN,k,j,is);
-          w(IPR,k,j,i) = w(IPR,k,j,is);
+          for (int n = 1+NVAPOR; n < NMASS; ++n)
+            w(n,k,j,i) = 0.;
         }
+        Real p1 = w(IPR,k,j,is);
+        Real p2 = w(IPR,k,j,is+1);
+        Real p3 = w(IPR,k,j,is+2);
+        w(IPR,k,j,is-1) = inflection3_cell1(p1, p2, p3);
+        w(IPR,k,j,is-2) = inflection3_cell2(p1, p2, p3);
+        w(IPR,k,j,is-3) = inflection3_cell3(p1, p2, p3);
       }
 
       // 3. adjust top boundary condition
       if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::outflow) {
         for (int i = ie + 1; i <= ie + NGHOST; ++i) {
           w(IDN,k,j,i) = w(IDN,k,j,ie);
-          w(IPR,k,j,i) = w(IPR,k,j,ie);
+          for (int n = 1+NVAPOR; n < NMASS; ++n)
+            w(n,k,j,i) = 0.;
         }
-      }*/
+        Real p1 = w(IPR,k,j,ie);
+        Real p2 = w(IPR,k,j,ie-1);
+        Real p3 = w(IPR,k,j,ie-2);
+        w(IPR,k,j,ie+1) = inflection3_cell1(p1, p2, p3);
+        w(IPR,k,j,ie+2) = inflection3_cell2(p1, p2, p3);
+        w(IPR,k,j,ie+3) = inflection3_cell3(p1, p2, p3);
+      }
     }
 
   // finish send bottom pressure

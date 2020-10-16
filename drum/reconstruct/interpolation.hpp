@@ -111,6 +111,22 @@ inline T interp_weno5(T phim2, T phim1, T phi, T phip1, T phip2) {
   return (alpha0*p0 + alpha1*p1 + alpha2*p2)/(alpha0 + alpha1 + alpha2);
 };
 
+// 3rd order polynomial with inflection point
+template<typename T>
+inline T inflection3_cell1(T f1, T f2, T f3) {
+  return 7./3.*f1 - 5./3.*f2 + 1./3.*f3;
+}
+
+template<typename T>
+inline T inflection3_cell2(T f1, T f2, T f3) {
+  return 10./3.*f1 - 8./3.*f2 + 1./3.*f3;
+}
+
+template<typename T>
+inline T inflection3_cell3(T f1, T f2, T f3) {
+  return 10./3.*f1 - 5./3.*f2 - 2./3.*f3;
+}
+
 #undef SQR
 
 #endif
