@@ -1,3 +1,6 @@
+// C/C++ headers
+#include <sstream>
+
 // Athena++ headers
 #include "hydro.hpp"
 #include "../athena.hpp"
@@ -7,6 +10,7 @@
 #include "../thermodynamics/thermodynamics.hpp"
 #include "../globals.hpp"
 #include "../reconstruct/interpolation.hpp"
+#include "../utils/utils.hpp"
 
 inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w, Coordinates *pco,
   Real grav, int kl, int ku, int jl, int ju, int il, int iu)
@@ -14,9 +18,9 @@ inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w,
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
       for (int i = il; i <= iu; ++i) {
-        psf(k,j,i+1) = psf(k,j,i) + grav*w(IDN,k,j,i)*pco->dx1f(i);
+        psf(k,j,i+1) = psf(k,j,i) - grav*w(IDN,k,j,i)*pco->dx1f(i);
         if (psf(k,j,i+1) < 0.)
-          psf(k,j,i+1) = psf(k,j,i)*exp(grav*w(IDN,k,j,i)*pco->dx1f(i)/w(IPR,k,j,i));
+          psf(k,j,i+1) = psf(k,j,i)*exp(-grav*w(IDN,k,j,i)*pco->dx1f(i)/w(IPR,k,j,i));
       }
 
 }
@@ -32,16 +36,25 @@ inline void IntegrateDownwards(AthenaArray<Real>& psf, AthenaArray<Real> const& 
 
 void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int ju)
 {
+  // Need to integrate upwards
   MeshBlock *pmb = pmy_block;
   Coordinates *pco = pmb->pcoord;
   Thermodynamics *pthermo = pmb->pthermo;
 
-  Real grav = hsrc.GetG1();  // positive in the x1-increasing direction
+  Real grav = -hsrc.GetG1();  // positive downward pointing
   Real Rd = pthermo->GetRd();
 
   int is = pmb->is, ie = pmb->ie;
   
   if (grav == 0.) return;
+
+  std::stringstream msg;
+  if (NGHOST < 3) {
+    msg << "### FATAL ERROR in function [Hydro::DecomposePressure]"
+        << std::endl << "number of ghost cells (NGHOST) must be at least 3" <<std::endl;
+    ATHENA_ERROR(msg);
+  }
+
 
   // find top and bot neighbor
   NeighborBlock ntop, nbot;
@@ -58,86 +71,125 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
     }
   }
 
-  // calculate local polytropic index
-  pthermo->PolytropicIndex(gamma_, w);
+  Real **w1;
+  NewCArray(w1, 2, NHYDRO);
 
-  if (has_top_neighbor)
-    RecvTopPressure(psf_, psbuf_, ntop, kl, ku, jl, ju);
-  else {  // isothermal extrapolation to find the pressure at top boundary
+  if (has_bot_neighbor) {
+    RecvBotPressure(psf_, entropy_, gamma_, nbot, kl, ku, jl, ju);
+  } else {
+    // bottom layer polytropic index
+    pthermo->PolytropicIndex(gamma_, w, kl, ku, jl, ju, is, is);
+    // bottom layer entropy
     for (int k = kl; k <= ku; ++k)
-      for (int j = jl; j <= ju; ++j) {
-        Real Tv = w(IPR,k,j,ie)/(w(IDN,k,j,ie)*Rd);
-        psf_(k,j,ie+1) = w(IPR,k,j,ie)*exp(grav*pco->dx1f(ie)/(2.*Rd*Tv));
-      }
+      for (int j = jl; j <= ju; ++j)
+        entropy_(k,j,is) = log(w(IPR,k,j,is)) - gamma_(k,j,is)*log(w(IDN,k,j,is));
+
+    if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
+      // adiabatic extrapolation to bottom boundary
+      for (int k = kl; k <= ku; ++k)
+        for (int j = jl; j <= ju; ++j) {
+          Real P1 = w(IPR,k,j,ie);
+          Real T1 = pthermo->Temp(w.at(k,j,is-1));
+          Real dz = pco->dx1f(is-1);
+          for (int n = 0; n <= NVAPOR; ++n)
+            w1[0][n] = w(n,k,j,is-1);
+          for (int n = 1+NVAPOR; n < NMASS; ++n)
+            w1[0][n] = 0.;
+          pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::pseudo);
+          psf_(k,j,is) = w1[1][IPR];
+        }
+    } else {  // reflecing boundary condition or else
+      // polynomical interpolation to find the pressure at bottom boundary
+      for (int k = kl; k <= ku; ++k)
+        for (int j = jl; j <= ju; ++j)
+          psf_(k,j,is) = exp(interp_cp6(log(w(IPR,k,j,is-3)), log(w(IPR,k,j,is-2)), 
+            log(w(IPR,k,j,is-1)), log(w(IPR,k,j,is)), log(w(IPR,k,j,is+1)), log(w(IPR,k,j,is+2))));
+    }
   }
-  IntegrateDownwards(psf_, w, pco, grav, kl, ku, jl, ju, is, ie);
+  IntegrateUpwards(psf_, w, pco, grav, kl, ku, jl, ju, is, ie);
   
-  if (has_bot_neighbor)
-    SendBotPressure(psf_, psbuf_, nbot, kl, ku, jl, ju);
+  if (has_top_neighbor)
+    SendBotPressure(psf_, entropy_, gamma_, ntop, kl, ku, jl, ju);
 
   // integrate ghost cells
   if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::reflect)
-    IntegrateDownwards(psf_, w, pco, -grav, kl, ku, jl, ju, is - NGHOST, is-1);
+    IntegrateDownwards(psf_, w, pco, -grav, kl, ku, jl, ju, is - NGHOST, is - 1);
   else  // block boundary
-    IntegrateDownwards(psf_, w, pco,  grav, kl, ku, jl, ju, is - NGHOST, is-1);
+    IntegrateDownwards(psf_, w, pco,  grav, kl, ku, jl, ju, is - NGHOST, is - 1);
 
   if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::reflect)
     IntegrateUpwards(psf_, w, pco, -grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
   else  // block boundary
     IntegrateUpwards(psf_, w, pco,  grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
 
+
   // decompose pressure
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j) {
       // 1. change density and pressure (including ghost cells)
-      for (int i = is - NGHOST; i <= ie + NGHOST; ++i) {
+      for (int i = is - NHYDRO; i <= ie + NHYDRO; ++i) {
         // interpolate hydrostatic pressure, prevent divided by zero
         if (fabs(psf_(k,j,i) - psf_(k,j,i+1)) < 1.E-6)
-          psv_(k,j,i) = 0.5*(psf_(k,j,i) + psf_(k,j,i+1));
+          psv_(k,j,i) = sqrt(psf_(k,j,i)*psf_(k,j,i+1));
         else
           psv_(k,j,i) = (psf_(k,j,i) - psf_(k,j,i+1))/log(psf_(k,j,i)/psf_(k,j,i+1));
 
-        // change density to pseudo entropy
-        w(IDN,k,j,i) = log(w(IPR,k,j,i)) - gamma_(k,j,i)*log(w(IDN,k,j,i));
-        
-        // change pressure to pertubation pressure
-        w(IPR,k,j,i) -= psv_(k,j,i);  
+        // save reference adiabatic density profile
+        dsv_(k,j,i) = pow(psv_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
+
+        // change pressure/density to pertubation quantities
+        w(IPR,k,j,i) -= psv_(k,j,i);
+        w(IDN,k,j,i) -= dsv_(k,j,i);
       }
 
-      // 2. adjust bottom boundary condition
+      // 2. override outflow bottom boundary
       if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-        for (int i = is - NGHOST; i < is; ++i) {
-          w(IDN,k,j,i) = w(IDN,k,j,is);
-          for (int n = 1+NVAPOR; n < NMASS; ++n)
-            w(n,k,j,i) = 0.;
-        }
         Real p1 = w(IPR,k,j,is);
         Real p2 = w(IPR,k,j,is+1);
         Real p3 = w(IPR,k,j,is+2);
+        // is-1
+        psv_(k,j,is-1) += w(IPR,k,j,is-1);
         w(IPR,k,j,is-1) = inflection3_cell1(p1, p2, p3);
+        psv_(k,j,is-1) -= w(IPR,k,j,is-1);
+
+        // is-2
+        psv_(k,j,is-2) += w(IPR,k,j,is-2);
         w(IPR,k,j,is-2) = inflection3_cell2(p1, p2, p3);
+        psv_(k,j,is-2) -= w(IPR,k,j,is-2);
+
+        // is-3
+        psv_(k,j,is-3) += w(IPR,k,j,is-3);
         w(IPR,k,j,is-3) = inflection3_cell3(p1, p2, p3);
+        psv_(k,j,is-3) -= w(IPR,k,j,is-3);
       }
 
-      // 3. adjust top boundary condition
+      // 3. override outflow top boundary
       if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::outflow) {
-        for (int i = ie + 1; i <= ie + NGHOST; ++i) {
-          w(IDN,k,j,i) = w(IDN,k,j,ie);
-          for (int n = 1+NVAPOR; n < NMASS; ++n)
-            w(n,k,j,i) = 0.;
-        }
         Real p1 = w(IPR,k,j,ie);
         Real p2 = w(IPR,k,j,ie-1);
         Real p3 = w(IPR,k,j,ie-2);
+        // ie+1
+        w(IPR,k,j,ie+1) += w(IPR,k,j,ie+1);
         w(IPR,k,j,ie+1) = inflection3_cell1(p1, p2, p3);
+        w(IPR,k,j,ie+1) -= w(IPR,k,j,ie+1);
+
+        // ie+2
+        w(IPR,k,j,ie+2) += w(IPR,k,j,ie+2);
         w(IPR,k,j,ie+2) = inflection3_cell2(p1, p2, p3);
+        w(IPR,k,j,ie+2) -= w(IPR,k,j,ie+2);
+        
+        // ie+3
+        w(IPR,k,j,ie+3) += w(IPR,k,j,ie+3);
         w(IPR,k,j,ie+3) = inflection3_cell3(p1, p2, p3);
+        w(IPR,k,j,ie+3) -= w(IPR,k,j,ie+3);
       }
     }
 
-  // finish send bottom pressure
-  if (has_bot_neighbor && (nbot.snb.rank != Globals::my_rank))
+  // finish send top pressure
+  if (has_top_neighbor && (nbot.snb.rank != Globals::my_rank))
     WaitBotPressure();
+
+  FreeCArray(w1);
 }
 
 void Hydro::AssemblePressure(AthenaArray<Real> &w,
@@ -145,19 +197,17 @@ void Hydro::AssemblePressure(AthenaArray<Real> &w,
 {
   MeshBlock *pmb = pmy_block;
   int is = pmb->is, ie = pmb->ie;
-  Real grav = hsrc.GetG1();
-  if (grav == 0.) return;
+  if (hsrc.GetG1() == 0.) return;
   
   for (int i = is - NGHOST; i <= ie + NGHOST; ++i) {
     w(IPR,k,j,i) += psv_(k,j,i);
-    if (w(IPR,k,j,i) < 0.) w(IPR,k,j,i) = psv_(k,j,i);
-    w(IDN,k,j,i) = exp((log(w(IPR,k,j,i)) - w(IDN,k,j,i))/gamma_(k,j,i));
+    w(IDN,k,j,i) += dsv_(k,j,i);
   }
 
   for (int i = il; i <= iu; ++i) {
     wr(IPR,i) += psf_(k,j,i);
     wl(IPR,i+1) += psf_(k,j,i+1);
-    wr(IDN,i) = exp((log(wr(IPR,i)) - wr(IDN,i))/gamma_(k,j,i));
-    wl(IDN,i+1) = exp((log(wl(IPR,i+1)) - wl(IDN,i+1))/gamma_(k,j,i));
+    wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
+    wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
   }
 }

@@ -31,12 +31,6 @@
   # Implicit has not been implemented
 
 @@ hydro/hydro.cpp
-  [+:in header/C] {
-    #include <sstream>
-  }
-  [+:in header/Athena++] {
-    #include ../globals.hpp
-  }
   [+:after pmb->pmy_mesh->UserTimeStep_] {
     // allocate hydrostatic and nonhydrostatic pressure
     psf_.NewAthenaArray(nc3, nc2, nc1 + 1);
@@ -45,105 +39,6 @@
 
     // allocate local polytropic index
     gamma_.NewAthenaArray(nc3, nc2, nc1);
-  }
-  [+:before EOF] {
-    Hydro::~Hydro() {
-      delete psbuf_;
-    }
-
-    void Hydro::CheckHydro()
-    {
-      MeshBlock *pmb = pmy_block->pmy_mesh->pblock;
-      std::stringstream msg;
-      int myrank = Globals::my_rank;
-
-      for (int k = pmb->ks; k <= pmb->ke; ++k)
-        for (int j = pmb->js; j <= pmb->je; ++j)
-          for (int i = pmb->is; i <= pmb->ie; ++i) {
-            if (w(IDN,k,j,i) < 0.) {
-              msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-                  << "Density is negative at position ("
-                  << k << "," << j << "," << i << ") in rank " << myrank;
-              ATHENA_ERROR(msg);
-            }
-            if (w(IPR,k,j,i) < 0.) {
-              msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-                  << "Pressure is negative at position ("
-                  << k << "," << j << "," << i << ") in rank " << myrank;
-              ATHENA_ERROR(msg);
-            }
-            Real temp = pmb->pthermo->Temp(w.at(k,j,i));
-            Real grav = -hsrc.GetG1();
-            if (grav != 0) {
-              Real Tmin = 2.*grav*pmb->pcoord->dx1f(i)/pmb->pthermo->GetRd();
-              if (temp < Tmin) {
-                msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-                    << "Vertical spacing is less than half scale height at position ("
-                    << k << "," << j << "," << i << ") in rank " << myrank << std::endl
-                    << "Minimum allowed temperature is " << Tmin << " K";
-                ATHENA_ERROR(msg);
-              }
-            }
-          }
-      if (myrank == 0)
-        std::cout << "Hydro check passed." << std::endl;
-    }
-
-    // FIXME: local boundary has not been implemented
-    // Ordering the meshblocks need to be worked out such that
-    // the upper boundary executes before the lower boundary
-    int TAG_TOPPRESSURE = 1111;
-    void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop) {
-      MeshBlock *pmb = pmy_block;
-      int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
-      int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
-      int ssize = (je-js+1)*(ke-ks+1);
-
-      std::stringstream msg;
-    #ifdef MPI_PARALLEL
-      MPI_Status status;
-    #endif
-
-      if (ntop.snb.rank != Globals::my_rank) { // MPI boundary
-    #ifdef MPI_PARALLEL
-        int tag = BoundaryBase::CreateBvalsMPITag(pmb->lid, TAG_TOPPRESSURE, ntop.bufid);
-        MPI_Recv(buf, ssize, MPI_ATHENA_REAL, ntop.snb.rank, tag, MPI_COMM_WORLD, &status);
-    #endif
-      } else {  // local boundary
-        // need to wait for the top boundary to finish
-        msg << "### FATAL ERROR in Hydro::RecvTopPressure" << std::endl
-            << "Local boundary not yet implemented" << std::endl;
-        throw std::runtime_error(msg.str().c_str());
-      }
-      int p = 0;
-      BufferUtility::UnpackData(buf, psf, ie+1, ie+1, js, je, ks, ke, p);
-    }
-
-    void Hydro::SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot) {
-      MeshBlock *pmb = pmy_block;
-      int is = pmb->is; int js = pmb->js; int ks = pmb->ks;
-      int ie = pmb->ie; int je = pmb->je; int ke = pmb->ke;
-      int ssize = 0;
-
-      BufferUtility::PackData(psf, buf, is, is, js, je, ks, ke, ssize);
-      if (nbot.snb.rank != Globals::my_rank) { // MPI boundary
-    #ifdef MPI_PARALLEL
-        int tag = BoundaryBase::CreateBvalsMPITag(nbot.lid, TAG_TOPPRESSURE, nbot.targetid);
-        MPI_Isend(buf, ssize, MPI_ATHENA_REAL, nbot.snb.rank, tag, MPI_COMM_WORLD,
-          &req_send_bot_pressure_);
-    #endif
-      } else {  // local boundary
-        MeshBlock *pbl = pmb->pmy_mesh->FindMeshBlock(nbot.snb.gid);
-        std::memcpy(pbl->phydro->psbuf_, buf, ssize*sizeof(Real));
-      }
-    }
-
-    void Hydro::WaitBotPressure() {
-    #ifdef MPI_PARALLEL
-      MPI_Status status;
-      MPI_Wait(&req_send_bot_pressure_, &status);
-    #endif
-    }
   }
 
 @@ hydro/calculate_fluxes.cpp

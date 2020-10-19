@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <sstream>
 
 // Athena++ headers
 #include "../athena.hpp"
@@ -25,9 +24,6 @@
 #include "hydro.hpp"
 #include "hydro_diffusion/hydro_diffusion.hpp"
 #include "srcterms/hydro_srcterms.hpp"
-#include "../globals.hpp"
-#include "../thermodynamics/thermodynamics.hpp"
-#include "../utils/buffer_utils.hpp"
 
 // constructor, initializes data structures and parameters
 
@@ -148,10 +144,12 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
   // allocate hydrostatic and nonhydrostatic pressure
   psf_.NewAthenaArray(nc3, nc2, nc1 + 1);
   psv_.NewAthenaArray(nc3, nc2, nc1);
-  psbuf_ = new Real [nc3*nc2];
+  dsv_.NewAthenaArray(nc3, nc2, nc1);
+  psbuf_ = new Real [3*nc3*nc2];
 
-  // allocate local polytropic index
+  // allocate polytropic index and pseudo entropy
   gamma_.NewAthenaArray(nc3, nc2, nc1);
+  entropy_.NewAthenaArray(nc3, nc2, nc1);
 
   // du stores the change of the conservative variable in a substep
   //du.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
@@ -168,99 +166,4 @@ Real Hydro::GetWeightForCT(Real dflx, Real rhol, Real rhor, Real dx, Real dt) {
   Real v_over_c = (1024.0)* dt * dflx / (dx * (rhol + rhor));
   Real tmp_min = std::min(static_cast<Real>(0.5), v_over_c);
   return 0.5 + std::max(static_cast<Real>(-0.5), tmp_min);
-}
-
-Hydro::~Hydro() {
-  delete psbuf_;
-}
-
-void Hydro::CheckHydro() {
-  MeshBlock *pmb = pmy_block->pmy_mesh->pblock;
-  std::stringstream msg;
-  int myrank = Globals::my_rank;
-
-  for (int k = pmb->ks; k <= pmb->ke; ++k)
-    for (int j = pmb->js; j <= pmb->je; ++j)
-      for (int i = pmb->is; i <= pmb->ie; ++i) {
-        if (w(IDN,k,j,i) < 0.) {
-          msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-              << "Density is negative at position ("
-              << k << "," << j << "," << i << ") in rank " << myrank;
-          ATHENA_ERROR(msg);
-        }
-        if (w(IPR,k,j,i) < 0.) {
-          msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-              << "Pressure is negative at position ("
-              << k << "," << j << "," << i << ") in rank " << myrank;
-          ATHENA_ERROR(msg);
-        }
-        Real temp = pmb->pthermo->Temp(w.at(k,j,i));
-        Real grav = -hsrc.GetG1();
-        if (grav != 0) {
-          Real Tmin = 2.*grav*pmb->pcoord->dx1f(i)/pmb->pthermo->GetRd();
-          if (temp < Tmin) {
-            msg << "### FATAL ERROR in Hydro::CheckHydro" << std::endl
-                << "Vertical spacing is less than half scale height at position ("
-                << k << "," << j << "," << i << ") in rank " << myrank << std::endl
-                << "Minimum allowed temperature is " << Tmin << " K";
-            ATHENA_ERROR(msg);
-          }
-        }
-      }
-  if (myrank == 0)
-    std::cout << "Hydro check passed." << std::endl;
-}
-
-// FIXME: local boundary has not been implemented
-// Ordering the meshblocks need to be worked out such that
-// the upper boundary executes before the lower boundary
-int TAG_TOPPRESSURE = 1111;
-void Hydro::RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop,
-  int kl, int ku, int jl, int ju) {
-  int ie = pmy_block->ie;
-  int ssize = (ju-jl+1)*(ku-kl+1);
-
-  std::stringstream msg;
-#ifdef MPI_PARALLEL
-  MPI_Status status;
-#endif
-
-  if (ntop.snb.rank != Globals::my_rank) { // MPI boundary
-#ifdef MPI_PARALLEL
-    int tag = BoundaryBase::CreateBvalsMPITag(pmy_block->lid, TAG_TOPPRESSURE, ntop.bufid);
-    MPI_Recv(buf, ssize, MPI_ATHENA_REAL, ntop.snb.rank, tag, MPI_COMM_WORLD, &status);
-#endif
-  } else {  // local boundary
-    // need to wait for the top boundary to finish
-    msg << "### FATAL ERROR in Hydro::RecvTopPressure" << std::endl
-        << "Local boundary not yet implemented" << std::endl;
-    throw std::runtime_error(msg.str().c_str());
-  }
-  int p = 0;
-  BufferUtility::UnpackData(buf, psf, ie+1, ie+1, jl, ju, kl, ku, p);
-}
-
-void Hydro::SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot,
-  int kl, int ku, int jl, int ju) {
-  int is = pmy_block->is;
-  int ssize = 0;
-
-  BufferUtility::PackData(psf, buf, is, is, jl, ju, kl, ku, ssize);
-  if (nbot.snb.rank != Globals::my_rank) { // MPI boundary
-#ifdef MPI_PARALLEL
-    int tag = BoundaryBase::CreateBvalsMPITag(nbot.snb.lid, TAG_TOPPRESSURE, nbot.targetid);
-    MPI_Isend(buf, ssize, MPI_ATHENA_REAL, nbot.snb.rank, tag, MPI_COMM_WORLD,
-      &req_send_bot_pressure_);
-#endif
-  } else {  // local boundary
-    MeshBlock *pbl = pmy_block->pmy_mesh->FindMeshBlock(nbot.snb.gid);
-    std::memcpy(pbl->phydro->psbuf_, buf, ssize*sizeof(Real));
-  }
-}
-
-void Hydro::WaitBotPressure() {
-#ifdef MPI_PARALLEL
-  MPI_Status status;
-  MPI_Wait(&req_send_bot_pressure_, &status);
-#endif
 }

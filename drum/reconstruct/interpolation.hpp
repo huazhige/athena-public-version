@@ -93,6 +93,12 @@ inline T interp_cp5(T phim2, T phim1, T phi, T phip1, T phip2) {
   return -1./20*phim2 + 9./20.*phim1 + 47./60.*phi - 13./60.*phip1 + 1./30.*phip2;
 };
 
+// 6-th polynomial interpolation
+template<typename T>
+inline T interp_cp6(T phim3, T phim2, T phim1, T phi, T phip1, T phip2) {
+  return 1./60*phim3 - 2./15.*phim2 + 37./60.*phim1 + 37./60.*phi - 2./15.*phip1 + 1./60.*phip2;
+};
+
 // WENO 5 interpolation
 template<typename T>
 inline T interp_weno5(T phim2, T phim1, T phi, T phip1, T phip2) {

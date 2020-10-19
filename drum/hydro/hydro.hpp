@@ -95,10 +95,17 @@ class Hydro {
   void CheckHydro();
 
 protected:
-  void SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot,
+  //void SendBotPressure(AthenaArray<Real> &psf, NeighborBlock nbot,
+  //  int kl, int ku, int jl, int ju);
+  //void WaitBotPressure();
+  //void RecvTopPressure(AthenaArray<Real> &psf, NeighborBlock ntop,
+  //  int kl, int ku, int jl, int ju);
+  void SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+    AthenaArray<Real> &gamma, NeighborBlock ntop,
     int kl, int ku, int jl, int ju);
   void WaitBotPressure();
-  void RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop,
+  void RecvBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+    AthenaArray<Real> &gamma, NeighborBlock nbot,
     int kl, int ku, int jl, int ju);
 
  private:
@@ -138,11 +145,14 @@ protected:
   // pressure decomposition
   AthenaArray<Real> psf_;         // hydrostatic pressure at cell face
   AthenaArray<Real> psv_;         // hydrostatic pressure at cell center
+  AthenaArray<Real> dsv_;         // reference density at cell center
+  AthenaArray<Real> gamma_;       // polytropic index
+  AthenaArray<Real> entropy_;     // pseudo entropy
   Real *psbuf_;                   // hydrostatic pressure buffer
-  AthenaArray<Real> gamma_;       // local polytropic index
 
 #ifdef MPI_PARALLEL
   MPI_Request req_send_bot_pressure_;
+  MPI_Request req_send_top_pressure_;
 #endif
 };
 #endif // HYDRO_HYDRO_HPP_

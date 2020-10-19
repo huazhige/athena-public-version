@@ -206,27 +206,15 @@ void Thermodynamics::ThermodynamicToConserved(AthenaArray<Real> &u,
       }
 }
 
-void Thermodynamics::PolytropicIndex(AthenaArray<Real> &gm, AthenaArray<Real> &w) const
+void Thermodynamics::PolytropicIndex(AthenaArray<Real> &gm, AthenaArray<Real> &w,
+  int kl, int ku, int jl, int ju, int il, int iu) const
 {
-  MeshBlock *pmb = pmy_block_;
-  Real gamma = pmb->peos->GetGamma();
-  int is = pmb->is; int jl = pmb->js; int kl = pmb->ks;
-  int ie = pmb->ie; int ju = pmb->je; int ku = pmb->ke;
-
-  if (pmb->block_size.nx2 > 1) {
-    jl -= NGHOST;
-    ju += NGHOST;
-  }
-
-  if (pmb->block_size.nx3 > 1) {
-    kl -= NGHOST;
-    ku += NGHOST;
-  }
+  Real gamma = pmy_block_->peos->GetGamma();
 
   // calculate local polytropic index
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
-      for (int i = is - NGHOST; i <= ie + NGHOST; ++i) {
+      for (int i = il; i <= iu; ++i) {
         Real fsig = 1., feps = 1.;
         for (int n = 1 + NVAPOR; n < NMASS; ++n) {
           fsig += w(n,k,j,i)*(rcv_[n] - 1.);

@@ -22,6 +22,8 @@ template<typename T> class AthenaArray;
 // iphase = 1 - primary condensible species
 // iphase = 2..(N-1) - all other condensible species
 
+enum class Adiabat {reversible = 0, pseudo = 1, dry = 2};
+
 class Thermodynamics {
   friend std::ostream& operator<<(std::ostream& os, Thermodynamics const& my);
 public:
@@ -62,7 +64,7 @@ public:
   //        = 1 - pseudo adiabat
   //        = 2 - an adiabat with no latent heat release
   void ConstructAdiabat(Real **w, Real Ts, Real Ps,
-    Real grav, Real dz, int len, int method, Real dTdz = 0.) const;
+    Real grav, Real dz, int len, Adiabat method, Real dTdz = 0.) const;
 
   // uhat is the molar interal energy defined as:
   // u^\hat = (q_d^\hat c_d^\hat T 
@@ -73,7 +75,8 @@ public:
 
   void SaturationAdjustment(AthenaArray<Real> &u) const;
 
-  void PolytropicIndex(AthenaArray<Real> &gamma, AthenaArray<Real> &w) const;
+  void PolytropicIndex(AthenaArray<Real> &gamma, AthenaArray<Real> &w,
+    int kl, int ku, int jl, int ju, int il, int iu) const;
 
   // Conserved variables to thermodynamic variables
   void ConservedToThermodynamic(AthenaArray<Real> &q, AthenaArray<Real> const& u,

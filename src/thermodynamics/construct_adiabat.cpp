@@ -7,7 +7,7 @@
 #include "thermodynamic_funcs.hpp"
 
 void Thermodynamics::ConstructAdiabat(Real **w, Real Ts, Real Ps,
-  Real grav, Real dz, int len, int method, Real dTdz) const
+  Real grav, Real dz, int len, Adiabat method, Real dTdz) const
 {
   //std::cout << "method=" << method << std::endl;
   //std::cout << "dTdz=" << dTdz << std::endl;
@@ -40,7 +40,7 @@ void Thermodynamics::ConstructAdiabat(Real **w, Real Ts, Real Ps,
   for (int i = 1; i < len; ++i) {
     // RK4 integration 
     rk4_integrate_z_adaptive(q1, isat, rcp, eps_, beta_, delta_, t3_, p3_, gamma,
-      grav/Rd_, dz, ftol_, method, dTdz);
+      grav/Rd_, dz, ftol_, (int)method, dTdz);
     cut_hat(w[i], q1, eps_, Rd_);
   }
 }

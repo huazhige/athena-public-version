@@ -75,9 +75,20 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
       else if (!uniform_bubble)
         temp += dT*exp(-(r-a)*(r-a)/(s*s))*pow(phydro->w(IPR,j,i)/p0, Rd/cp);
       phydro->w(IDN,j,i) = phydro->w(IPR,j,i)/(Rd*temp);
-      phydro->w(IVX,j,i) = 0.;
-      phydro->w(IVY,j,i) = 0.;
+      phydro->w(IVX,j,i) = phydro->w(IVY,j,i) = 0.;
     }
   }
+
+  if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
+    for (int j = js; j <= je; ++j) {
+      for (int i = is-1; i >= is-NGHOST; --i) {
+        Real x1 = pcoord->x1v(i);
+        Real temp = Ts - grav*x1/cp;
+        phydro->w(IPR,j,i) = p0*pow(temp/Ts, cp/Rd);
+        phydro->w(IDN,j,i) = phydro->w(IPR,j,i)/(Rd*temp);
+        phydro->w(IVX,j,i) = phydro->w(IVY,j,i) = 0.;
+      }
+  }
+
   peos->PrimitiveToConserved(phydro->w, pfield->bcc, phydro->u, pcoord, is, ie, js, je, ks, ke);
 }
