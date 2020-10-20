@@ -13,19 +13,26 @@
     void CheckHydro();
 
   protected:
-    void SendBotPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock nbot);
+    void SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+      AthenaArray<Real> &gamma, NeighborBlock ntop,
+      int kl, int ku, int jl, int ju);
     void WaitBotPressure();
-    void RecvTopPressure(AthenaArray<Real> &psf, Real *buf, NeighborBlock ntop);
+    void RecvBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+      AthenaArray<Real> &gamma, NeighborBlock nbot,
+      int kl, int ku, int jl, int ju);
   }
   [+:before EOF/#endif/};] {
     // pressure decomposition
     AthenaArray<Real> psf_;         // hydrostatic pressure at cell face
     AthenaArray<Real> psv_;         // hydrostatic pressure at cell center
-    Real *psbuf_;                   // hydrostatic pressure buffer
-    AthenaArray<Real> gamma_;       // local polytropic index
+    AthenaArray<Real> dsv_;         // reference density at cell center
+    AthenaArray<Real> gamma_;       // polytropic index
+    AthenaArray<Real> entropy_;     // pseudo entropy
+    AthenaArray<Real> hydro_face_;  // scratch array stores hydro variables at cell face
 
   #ifdef MPI_PARALLEL
     MPI_Request req_send_bot_pressure_;
+    MPI_Request req_send_top_pressure_;
   #endif
   }
   # Implicit has not been implemented
@@ -35,10 +42,13 @@
     // allocate hydrostatic and nonhydrostatic pressure
     psf_.NewAthenaArray(nc3, nc2, nc1 + 1);
     psv_.NewAthenaArray(nc3, nc2, nc1);
-    psbuf_ = new Real [nc3*nc2];
+    dsv_.NewAthenaArray(nc3, nc2, nc1);
+    psbuf_ = new Real [3*nc3*nc2];
 
     // allocate local polytropic index
     gamma_.NewAthenaArray(nc3, nc2, nc1);
+    entropy_.NewAthenaArray(nc3, nc2, nc1);
+    hydro_face_.NewAthenaArray(NHYDRO, nc3, nc2, nc1 + 1);
   }
 
 @@ hydro/calculate_fluxes.cpp

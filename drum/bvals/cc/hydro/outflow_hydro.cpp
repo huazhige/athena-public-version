@@ -65,7 +65,7 @@ void HydroBoundaryVariable::OutflowOuterX1(
       pthermo->ConstructAdiabat(w1, T1, P1, grav, dz, 1+ngh, Adiabat::reversible, dTdz);
 #pragma omp simd
       for (int i = 1; i <= ngh; ++i) {
-        for (int n = 0; n < NMASS; ++i)
+        for (int n = 0; n < NMASS; ++n)
           (*var_cc)(n,k,j,iu+i) = w1[i][n];
         (*var_cc)(IPR,k,j,iu+i) = w1[i][IPR];
       }

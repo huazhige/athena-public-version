@@ -80,7 +80,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
   }
 
   if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-    for (int j = js; j <= je; ++j) {
+    for (int j = js-1; j <= je+1; ++j)
       for (int i = is-1; i >= is-NGHOST; --i) {
         Real x1 = pcoord->x1v(i);
         Real temp = Ts - grav*x1/cp;
