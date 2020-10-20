@@ -49,6 +49,10 @@ void Hydro::CheckHydro() {
           }
         }
       }
+
+  //memcpy(w1.data(), w.data(), w.size());
+  // make a copy of w, needed for outflow boundary condition
+  w1 = w;
   if (myrank == 0)
     std::cout << "Hydro check passed. ";
 }
