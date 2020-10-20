@@ -34,10 +34,12 @@ void rk4_integrate_z(Real q[], int isat[], Real rcp[], Real const eps[],
 
     // calculate tendency
     update_gamma(gamma, rcp, q);
-    if (method == 2)
-      chi[rk] = dlnTdlnP(q, isat, rcp, beta0, delta0, t3, gamma);
-    else
+    if (method == 0 || method == 1)
       chi[rk] = dlnTdlnP(q, isat, rcp, beta, delta, t3, gamma);
+    else if (method == 2)
+      chi[rk] = dlnTdlnP(q, isat, rcp, beta0, delta0, t3, gamma);
+    else  // isothermal
+      chi[rk] = 0.;
     dTdz[rk] = - chi[rk]*g_ov_Rd/qhat_eps(q, eps) + user_dTdz;
     chi[rk] = - qhat_eps(q, eps)/g_ov_Rd*dTdz[rk];
     

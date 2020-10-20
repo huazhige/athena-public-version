@@ -22,7 +22,7 @@ template<typename T> class AthenaArray;
 // iphase = 1 - primary condensible species
 // iphase = 2..(N-1) - all other condensible species
 
-enum class Adiabat {reversible = 0, pseudo = 1, dry = 2};
+enum class Adiabat {reversible = 0, pseudo = 1, dry = 2, isothermal = 3};
 
 class Thermodynamics {
   friend std::ostream& operator<<(std::ostream& os, Thermodynamics const& my);
