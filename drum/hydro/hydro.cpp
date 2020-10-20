@@ -150,6 +150,7 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
   // allocate polytropic index and pseudo entropy
   gamma_.NewAthenaArray(nc3, nc2, nc1);
   entropy_.NewAthenaArray(nc3, nc2, nc1);
+  hydro_face_.NewAthenaArray(NHYDRO, nc3, nc2, nc1 + 1);
 
   // du stores the change of the conservative variable in a substep
   //du.NewAthenaArray(NHYDRO, nc3, nc2, nc1);

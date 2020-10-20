@@ -105,9 +105,20 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
       if (L <= 1.)
         temp += dT*(cos(M_PI*L) + 1.)/2.;
       phydro->w(IDN,j,i) = phydro->w(IPR,j,i)/(Rd*temp);
-      phydro->w(IV1,j,i) = 0.;
-      phydro->w(IV2,j,i) = 0.;
+      phydro->w(IV1,j,i) = phydro->w(IV2,j,i) = 0.;
     }
+  }
+
+  if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
+    for (int j = js-1; j <= je+1; ++j)
+      for (int i = is-1; i >= is-NGHOST; --i) {
+        Real x1 = pcoord->x1v(i);
+        Real temp = Ts - grav*x1/cp;
+        phydro->w1(IPR,j,i) = phydro->w(IPR,j,i) = p0*pow(temp/Ts, cp/Rd);
+        phydro->w1(IDN,j,i) = phydro->w(IDN,j,i) = phydro->w(IPR,j,i)/(Rd*temp);
+        phydro->w1(IVX,j,i) = phydro->w(IVX,j,i) = 0.;
+        phydro->w1(IVY,j,i) = phydro->w(IVY,j,i) = 0.;
+      }
   }
 
   /* add tracers if defined

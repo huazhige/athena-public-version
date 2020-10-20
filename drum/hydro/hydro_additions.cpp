@@ -50,7 +50,7 @@ void Hydro::CheckHydro() {
         }
       }
   if (myrank == 0)
-    std::cout << "Hydro check passed.";
+    std::cout << "Hydro check passed. ";
 }
 
 /* FIXME: local boundary has not been implemented
@@ -106,8 +106,7 @@ void Hydro::WaitBotPressure() {
 #endif
 }*/
 
-// FIXME: local boundary has not been implemented
-// Ordering the meshblocks need to be worked out such that
+// Ordering the meshblocks should ensure that
 // the lower boundary executes before the upper boundary
 void Hydro::RecvBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
   AthenaArray<Real> &gamma, NeighborBlock nbot,
@@ -125,16 +124,12 @@ void Hydro::RecvBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
     int tag = BoundaryBase::CreateBvalsMPITag(pmy_block->lid, TAG_BOTPRESSURE, nbot.bufid);
     MPI_Recv(psbuf_, ssize, MPI_ATHENA_REAL, nbot.snb.rank, tag, MPI_COMM_WORLD, &status);
 #endif
-  } else {  // local boundary
-    // need to wait for the top boundary to finish
-    msg << "### FATAL ERROR in Hydro::RecvTopPressure" << std::endl
-        << "Local boundary not yet implemented" << std::endl;
-    ATHENA_ERROR(msg);
-  }
+  } // local boundary will automatically work because it is treated in SendBotPressure
+
   int p = 0;
   BufferUtility::UnpackData(psbuf_, psf, is, is, jl, ju, kl, ku, p);
-  BufferUtility::UnpackData(psbuf_ + p, entropy, is, is, jl, ju, kl, ku, p);
-  BufferUtility::UnpackData(psbuf_ + p, gamma, is, is, jl, ju, kl, ku, p);
+  BufferUtility::UnpackData(psbuf_, entropy, is, is, jl, ju, kl, ku, p);
+  BufferUtility::UnpackData(psbuf_, gamma, is, is, jl, ju, kl, ku, p);
 }
 
 void Hydro::SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
@@ -144,13 +139,13 @@ void Hydro::SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
   int ssize = 0;
 
   BufferUtility::PackData(psf, psbuf_, ie+1, ie+1, jl, ju, kl, ku, ssize);
-  BufferUtility::PackData(entropy, psbuf_ + ssize, is, is, jl, ju, kl, ku, ssize);
-  BufferUtility::PackData(gamma, psbuf_ + ssize, is, is, jl, ju, kl, ku, ssize);
+  BufferUtility::PackData(entropy, psbuf_, is, is, jl, ju, kl, ku, ssize);
+  BufferUtility::PackData(gamma, psbuf_, is, is, jl, ju, kl, ku, ssize);
   if (ntop.snb.rank != Globals::my_rank) { // MPI boundary
 #ifdef MPI_PARALLEL
     int tag = BoundaryBase::CreateBvalsMPITag(ntop.snb.lid, TAG_BOTPRESSURE, ntop.targetid);
     MPI_Isend(psbuf_, ssize, MPI_ATHENA_REAL, ntop.snb.rank, tag, MPI_COMM_WORLD,
-      &req_send_bot_pressure_);
+      &req_send_top_pressure_);
 #endif
   } else {  // local boundary
     MeshBlock *pbl = pmy_block->pmy_mesh->FindMeshBlock(ntop.snb.gid);

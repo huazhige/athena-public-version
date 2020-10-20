@@ -31,7 +31,7 @@ inline void IntegrateDownwards(AthenaArray<Real>& psf, AthenaArray<Real> const& 
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
       for (int i = iu; i >= il; --i)
-        psf(k,j,i) = psf(k,j,i+1) - grav*w(IDN,k,j,i)*pco->dx1f(i);
+        psf(k,j,i) = psf(k,j,i+1) + grav*w(IDN,k,j,i)*pco->dx1f(i);
 }
 
 void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int ju)
@@ -88,15 +88,15 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
       // adiabatic extrapolation to bottom boundary
       for (int k = kl; k <= ku; ++k)
         for (int j = jl; j <= ju; ++j) {
-          Real P1 = w(IPR,k,j,ie);
+          Real P1 = w(IPR,k,j,is-1);
           Real T1 = pthermo->Temp(w.at(k,j,is-1));
           Real dz = pco->dx1f(is-1);
-          for (int n = 0; n <= NVAPOR; ++n)
+          for (int n = 0; n < NMASS; ++n)
             w1[0][n] = w(n,k,j,is-1);
-          for (int n = 1+NVAPOR; n < NMASS; ++n)
-            w1[0][n] = 0.;
-          pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::pseudo);
+          pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::reversible);
           psf_(k,j,is) = w1[1][IPR];
+          for (int n = 0; n < NHYDRO; ++n)
+            hydro_face_(n,k,j,is) = w1[1][n];
         }
     } else {  // reflecing boundary condition or else
       // polynomical interpolation to find the pressure at bottom boundary
@@ -122,15 +122,14 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   else  // block boundary
     IntegrateUpwards(psf_, w, pco,  grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
 
-
   // decompose pressure
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j) {
       // 1. change density and pressure (including ghost cells)
-      for (int i = is - NHYDRO; i <= ie + NHYDRO; ++i) {
+      for (int i = is - NGHOST; i <= ie + NGHOST; ++i) {
         // interpolate hydrostatic pressure, prevent divided by zero
         if (fabs(psf_(k,j,i) - psf_(k,j,i+1)) < 1.E-6)
-          psv_(k,j,i) = sqrt(psf_(k,j,i)*psf_(k,j,i+1));
+          psv_(k,j,i) = (psf_(k,j,i) + psf_(k,j,i+1))/2.;
         else
           psv_(k,j,i) = (psf_(k,j,i) - psf_(k,j,i+1))/log(psf_(k,j,i)/psf_(k,j,i+1));
 
@@ -169,24 +168,51 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
         Real p2 = w(IPR,k,j,ie-1);
         Real p3 = w(IPR,k,j,ie-2);
         // ie+1
-        w(IPR,k,j,ie+1) += w(IPR,k,j,ie+1);
+        psv_(k,j,ie+1) += w(IPR,k,j,ie+1);
         w(IPR,k,j,ie+1) = inflection3_cell1(p1, p2, p3);
-        w(IPR,k,j,ie+1) -= w(IPR,k,j,ie+1);
+        psv_(k,j,ie+1) -= w(IPR,k,j,ie+1);
 
         // ie+2
-        w(IPR,k,j,ie+2) += w(IPR,k,j,ie+2);
+        psv_(k,j,ie+2) += w(IPR,k,j,ie+2);
         w(IPR,k,j,ie+2) = inflection3_cell2(p1, p2, p3);
-        w(IPR,k,j,ie+2) -= w(IPR,k,j,ie+2);
+        psv_(k,j,ie+2) -= w(IPR,k,j,ie+2);
         
         // ie+3
-        w(IPR,k,j,ie+3) += w(IPR,k,j,ie+3);
+        psv_(k,j,ie+3) += w(IPR,k,j,ie+3);
         w(IPR,k,j,ie+3) = inflection3_cell3(p1, p2, p3);
-        w(IPR,k,j,ie+3) -= w(IPR,k,j,ie+3);
+        psv_(k,j,ie+3) -= w(IPR,k,j,ie+3);
       }
     }
 
+  /* debug
+  if (Globals::my_rank == 0) {
+    std::cout << "========== " << jl << std::endl;
+    for (int i = is - NGHOST; i <= ie + NGHOST; ++i) {
+      if (i == is)
+        std::cout << "-------- ";
+      if (i == 0)
+        std::cout << "i = " << "-1/2 ";
+      else if (i == 1)
+        std::cout << "i = " << "+1/2 ";
+      else
+        std::cout << "i = " << i-1 << "+1/2 ";
+      std::cout << "psf = " << psf_(kl,jl,i) << std::endl;
+      std::cout << "i = " << i  << "    ";
+      //std::cout << "pre = " << w(IPR,kl,jl,i) << std::endl;
+      std::cout << "psv = " << psv_(kl,jl,i) + w(IPR,kl,jl,i) << " pre = " << w(IPR,kl,jl,i) 
+                << " dsv = " << dsv_(kl,jl,i) << " den = " << w(IDN,kl,jl,i) << std::endl;
+      if (i == ie)
+        std::cout << "-------- ";
+      if (i == ie + NGHOST) {
+        std::cout << "i = " << i+1 << "+1/2 ";
+        std::cout << "psf = " << psf_(kl,jl,i+1) << std::endl;
+      }
+    }
+    std::cout << "==========" << std::endl;
+  }*/
+
   // finish send top pressure
-  if (has_top_neighbor && (nbot.snb.rank != Globals::my_rank))
+  if (has_top_neighbor && (ntop.snb.rank != Globals::my_rank))
     WaitBotPressure();
 
   FreeCArray(w1);
@@ -209,5 +235,11 @@ void Hydro::AssemblePressure(AthenaArray<Real> &w,
     wl(IPR,i+1) += psf_(k,j,i+1);
     wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
     wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
+  }
+
+  // override outflow bottom boundary
+  if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
+    wl(IPR,is) = psf_(k,j,is);
+    wl(IDN,is) = hydro_face_(IDN,k,j,is);
   }
 }

@@ -148,6 +148,7 @@ protected:
   AthenaArray<Real> dsv_;         // reference density at cell center
   AthenaArray<Real> gamma_;       // polytropic index
   AthenaArray<Real> entropy_;     // pseudo entropy
+  AthenaArray<Real> hydro_face_;  // scratch array stores hydro variables at cell face
   Real *psbuf_;                   // hydrostatic pressure buffer
 
 #ifdef MPI_PARALLEL
