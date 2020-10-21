@@ -1,0 +1,22 @@
+@@ task_list.hpp:
+  [+:after IntegrateField(MeshBlock *pmb, int stage)] {
+    TaskStatus IntegrateChemistry(MeshBlock *pmb, int stage);
+  }
+  [+:after const TaskID INT_FLD(19)] {
+    const TaskID INT_CHM(21);
+  }
+
+@@ time_integrator.cpp:
+  [+:after,4 } else if (id == INT_FLD) {] {
+    \} else if (id == INT_CHM) \{
+      task_list_[ntasks].TaskFunc=
+          static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+          (&TimeIntegratorTaskList::IntegrateChemistry);
+      task_list_[ntasks].lb_time = true;
+  }
+  [+:after AddTask(SRCTERM_HYD,INT_HYD)] {
+    AddTASK(INT_CHM,SRCTERM_HYD);
+  }
+  [r:1 AddTask(SEND_HYD,SRCTERM_HYD)] {
+    SRCTERM_HYD -> INT_CHM
+  }
