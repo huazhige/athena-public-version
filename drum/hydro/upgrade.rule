@@ -80,3 +80,9 @@
     // assemble pressure pertubation
     AssemblePressure(w, wl_, wr_, k, j, is-1, ie+1);
   }
+
+@@ hydro/new_blockdt.cpp
+  [+:before if (fluid_status == FluidFormulation::evolve)] {
+    for (int n = 0; n < NHYDRO; ++n)
+      wi[n]=w(n,k,j,i);
+  }

@@ -1,5 +1,4 @@
 configure.py
-  == STAGE 1 ==
   # Remove eigen and fits dependence
   [+:after --hdf5_path=path path to FFTW libraries] {
     #   -netcdf           enable NETCDF output (requires the NETCDF library)
@@ -76,6 +75,12 @@ configure.py
   [+:after definitions['PROBLEM']] {
     makefile_options['PROBLEM'] = args['prob']
   }
+  [r:once 'hlle', 'hllc', 'hlld', 'roe', 'llf'] {
+    'llf' -> 'llf', 'lmars'
+  }
+  [r:once definitions['NWAVE_VALUE'] = '5'] {
+    '5' -> definitions['NHYDRO_VARIABLES']
+  }
   [+:after definitions['EOS_TABLE_ENABLED'] = '1'] {
     if int(args['nvapor']) == 0:
       args['nphase'] = '1'
@@ -139,10 +144,8 @@ configure.py
     print('  NETCDF output:              ' + ('ON' if args['netcdf'] else 'OFF'))
     print('  PNETCDF output:             ' + ('ON' if args['pnetcdf'] else 'OFF'))
   }
-  == STAGE 2 ==
 
 Makefile.in:
-  == STAGE 1 ==
   [+:after MPIFFT_FILE = @MPIFFT_FILE@] {
     MATH_LIBRARY = src/math/libclimath.a
   }
@@ -159,4 +162,3 @@ Makefile.in:
     $(MATH_LIBRARY):
       make -C src/math CC=$(CXX)
   }
-  == STAGE 2 ==

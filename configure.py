@@ -122,7 +122,7 @@ parser.add_argument('--eos',
 # --flux=[name] argument
 parser.add_argument('--flux',
                     default='default',
-                    choices=['default', 'hlle', 'hllc', 'hlld', 'roe', 'llf'],
+                    choices=['default', 'hlle', 'hllc', 'hlld', 'roe', 'llf', 'lmars'],
                     help='select Riemann solver')
 
 # --nghost=[value] argument
@@ -507,7 +507,7 @@ else:
     if args['eos'] == 'isothermal':
         definitions['NWAVE_VALUE'] = '4'
     else:
-        definitions['NWAVE_VALUE'] = '5'
+        definitions['NWAVE_VALUE'] = definitions['NHYDRO_VARIABLES']
 
 # -sts argument
 if args['sts']:
