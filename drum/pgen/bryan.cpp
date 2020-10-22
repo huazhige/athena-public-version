@@ -131,21 +131,21 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
   for (int i = 1; i < nx1; ++i)
     z1[i] = z1[i-1] + dz;
 
+  // setup initial condition
+  int kl = block_size.nx3 == 1 ? ks : ks-1;
+  int ku = block_size.nx3 == 1 ? ke : ke+1;
   for (int i = is; i <= ie; ++i) {
     Real buf[NHYDRO];
     interpn(buf, &pcoord->x1v(i), *w1, z1, &nx1, 1, NHYDRO);
-    for (int k = ks; k <= ke; ++k)
-      for (int j = js-1; j <= je+1; ++j) {
+    buf[IVX] = buf[IVY] = buf[IVZ] = 0.;
+    for (int k = kl; k <= ku; ++k)
+      for (int j = js-1; j <= je+1; ++j)
         for (int n = 0; n < NHYDRO; ++n)
           phydro->w(n,k,j,i) = buf[n];
-        phydro->w(IVX,k,j,i) = 0.;
-        phydro->w(IVY,k,j,i) = 0.;
-      }
   }
 
+  // setup open lower boundary
   if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-    int kl = block_size.nx3 == 1 ? ks : ks-1;
-    int ku = block_size.nx3 == 1 ? ke : ke+1;
     for (int k = kl; k <= ku; ++k)
       for (int j = js-1; j <= je+1; ++j) {
         for (int n = 0; n < NHYDRO; ++n)

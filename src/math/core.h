@@ -8,6 +8,12 @@ inline double sqr(double x) {
 inline double cub(double x) {
   return x*x*x;
 }
+inline double min(double x1, double x2, double x3) {
+  return fmin(x1, fmin(x2, x3));
+}
+inline double max(double x1, double x2, double x3) {
+  return fmax(x1, fmax(x2, x3));
+}
 inline double allmax(double *a, int n) {
   double v = a[0];
   for (int i = 1; i < n; ++i)

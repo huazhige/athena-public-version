@@ -15,6 +15,10 @@
     #define WATER_VAPOR_ID  @WATER_VAPOR_ID@
     #define AMMONIA_VAPOR_ID  @AMMONIA_VAPOR_ID@
   }
+  [+:after RADIATION_ENABLED] {
+    // chemistry
+    #define CHEMISTRY "@CHEMISTRY@"
+  }
 
 @@ athena.hpp
   [+:before enum ConsIndex] {
@@ -46,4 +50,9 @@
     StrideIterator<T*> at(int k, int j, int i) const {
       return StrideIterator<T*>(pdata_ + i + nx1_*j + nx1_*nx2_*k, nx1_*nx2_*nx3_);
     }
+  }
+
+@@ srcterms/constant_acc.cpp
+  [r:once if (g1_!=0.0)] {
+    0.0 -> 0.0 && std::strcmp(RIEMANN_SOLVER, "noflux") != 0)
   }

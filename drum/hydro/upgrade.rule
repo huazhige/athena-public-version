@@ -52,6 +52,9 @@
   }
 
 @@ hydro/calculate_fluxes.cpp
+  [+:in header/Athena] {
+    #include "../chemistry/chemistry.hpp"
+  }
   [+:after pmb->precon->PiecewiseLinearX1(k, j, is-1, ie+1, w, bcc, wl_, wr_)] {
     } else if (order == 5) {
       pmb->precon->Weno5X1(k, j, is-1, ie+1, w, bcc, wl_, wr_);
@@ -79,6 +82,9 @@
   [+:before,once pmb->pcoord->CenterWidth1] {
     // assemble pressure pertubation
     AssemblePressure(w, wl_, wr_, k, j, is-1, ie+1);
+  }
+  [+:before,once if (order == 4)] {
+    pmb->pchem->AddSedimentationFlux(x1flux, wr_, k, j, is, ie+1);
   }
 
 @@ hydro/new_blockdt.cpp

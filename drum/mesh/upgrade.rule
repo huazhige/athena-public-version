@@ -1,9 +1,11 @@
 @@ mesh/mesh.hpp
   [+:in forward_declaration] {
     class Thermodynamics;
+    class Chemistry;
   }
   [+:after EquationOfState *peos] {
     Thermodynamics *pthermo;
+    Chemistry *pchem;
   }
 @@ mesh/mesh.cpp
   [+:after pmb->pbval->CheckUserBoundaries()] {
@@ -12,10 +14,17 @@
 @@ mesh/meshblock.cpp
   [+:in header/Athena++] {
     #include "../thermodynamics/thermodynamics.hpp"
+    #include "../chemistry/chemistry.hpp"
   }
-  [+:after peos = new EquationOfState]
+  [+:after,all peos = new EquationOfState]
     pthermo = new Thermodynamics(this, pin);
+    if (std::strcmp(CHEMISTRY, "kessler94") == 0) {
+      pchem = new Kessler94(this, pin);
+    } else {
+      pchem = new Chemistry(this, pin);
+    }
   }
-  [+:in MeshBlock:~MeshBlock()] {
+  [+:after delete peos] {
     delete pthermo;
+    delete pchem;
   }

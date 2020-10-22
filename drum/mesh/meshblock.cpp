@@ -39,6 +39,7 @@
 #include "mesh_refinement.hpp"
 #include "meshblock_tree.hpp"
 #include "../thermodynamics/thermodynamics.hpp"
+#include "../chemistry/chemistry.hpp"
 
 //----------------------------------------------------------------------------------------
 // MeshBlock constructor: constructs coordinate, boundary condition, hydro, field
@@ -173,6 +174,11 @@ MeshBlock::MeshBlock(int igid, int ilid, LogicalLocation iloc, RegionSize input_
 
   peos = new EquationOfState(this, pin);
   pthermo = new Thermodynamics(this, pin);
+  if (std::strcmp(CHEMISTRY, "kessler94") == 0) {
+    pchem = new Kessler94(this, pin);
+  } else {
+    pchem = new Chemistry(this, pin);
+  }
 
   // Create user mesh data
   InitUserMeshBlockData(pin);
@@ -289,6 +295,11 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
 
   peos = new EquationOfState(this, pin);
   pthermo = new Thermodynamics(this, pin);
+  if (std::strcmp(CHEMISTRY, "kessler94") == 0) {
+    pchem = new Kessler94(this, pin);
+  } else {
+    pchem = new Chemistry(this, pin);
+  }
 
   InitUserMeshBlockData(pin);
 
@@ -369,6 +380,7 @@ MeshBlock::~MeshBlock() {
   if (nint_user_meshblock_data_ > 0) delete [] iuser_meshblock_data;
 
   delete pthermo;
+  delete pchem;
 }
 
 //----------------------------------------------------------------------------------------

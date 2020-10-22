@@ -52,6 +52,7 @@ class FFTDriver;
 class FFTGravityDriver;
 class TurbulenceDriver;
 class Thermodynamics;
+class Chemistry;
 
 FluidFormulation GetFluidFormulation(const std::string& input_string);
 
@@ -123,6 +124,7 @@ class MeshBlock {
   EquationOfState *peos;
 
   Thermodynamics *pthermo;
+  Chemistry *pchem;
 
   MeshBlock *prev, *next;
 

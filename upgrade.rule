@@ -76,7 +76,7 @@ configure.py
     makefile_options['PROBLEM'] = args['prob']
   }
   [r:once 'hlle', 'hllc', 'hlld', 'roe', 'llf'] {
-    'llf' -> 'llf', 'lmars'
+    'llf' -> 'llf', 'lmars', 'noflux'
   }
   [r:once definitions['NWAVE_VALUE'] = '5'] {
     '5' -> definitions['NHYDRO_VARIABLES']
@@ -92,12 +92,7 @@ configure.py
     definitions['AMMONIA_VAPOR_ID'] = args['nh3']
 
     # --chem=[name] argument
-    if args['chem'] != 'OFF':
-      definitions['CHEMISTRY'] = args['chem']
-      makefile_options['CHEM_FILE'] = 'src/chemistry/' + args['chem'] + '.cpp'
-    else:
-      definitions['CHEMISTRY'] = 'OFF'
-      makefile_options['CHEM_FILE'] = ''
+    definitions['CHEMISTRY'] = args['chem']
   }
   [r:all makefile_options['LINKER_FLAGS']] {
     '' -> '-Lsrc/math'
@@ -154,6 +149,7 @@ Makefile.in:
   }
   [+:after $(wildcard src/utils/*.cpp)] {
     $(wildcard src/thermodynamics/*.cpp) \
+    $(wildcard src/chemistry/*.cpp) \
   }
   [r:1 $(EXECUTABLE)] {
     $(OBJ_FILES) -> $(OBJ_FILES) $(MATH_LIBRARY)

@@ -11,13 +11,12 @@
  * This routine is used in combination with lubksbto solve linear equationsor invert a matrix.
  * adapted from Numerical Recipes in C, 2nd Ed., p. 46.
  */
-void ludcmp(double **a, int n, int *indx, double *d)
+int ludcmp(double **a, int n, int *indx, double *vv)
 {
-	int i, imax, j, k;
+	int i, imax, j, k, d;
 	double big, dum, sum, temp;
-	double *vv = (double*)malloc(n*sizeof(double));
 
-	*d = 1.0;
+	d = 1;
 	for (i = 0; i < n; i++) {
 		big = 0.0;
 		for (j = 0; j < n; j++)
@@ -51,7 +50,7 @@ void ludcmp(double **a, int n, int *indx, double *d)
 				a[imax][k] = a[j][k];
 				a[j][k] = dum;
 			}
-			*d = -(*d);
+			d = -d;
 			vv[imax] = vv[j];
 		}
 		indx[j] = imax;
@@ -60,5 +59,6 @@ void ludcmp(double **a, int n, int *indx, double *d)
 			for (i = j + 1; i < n; i++) a[i][j] *= dum;
 		}
 	}
-  free(vv);
+
+  return d;
 }

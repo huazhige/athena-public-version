@@ -122,7 +122,7 @@ parser.add_argument('--eos',
 # --flux=[name] argument
 parser.add_argument('--flux',
                     default='default',
-                    choices=['default', 'hlle', 'hllc', 'hlld', 'roe', 'llf', 'lmars'],
+                    choices=['default', 'hlle', 'hllc', 'hlld', 'roe', 'llf', 'lmars', 'noflux'],
                     help='select Riemann solver')
 
 # --nghost=[value] argument
@@ -462,12 +462,7 @@ definitions['WATER_VAPOR_ID'] = args['h2o']
 definitions['AMMONIA_VAPOR_ID'] = args['nh3']
 
 # --chem=[name] argument
-if args['chem'] != 'OFF':
-  definitions['CHEMISTRY'] = args['chem']
-  makefile_options['CHEM_FILE'] = 'src/chemistry/' + args['chem'] + '.cpp'
-else:
-  definitions['CHEMISTRY'] = 'OFF'
-  makefile_options['CHEM_FILE'] = ''
+definitions['CHEMISTRY'] = args['chem']
 
 # --flux=[name] argument
 definitions['RSOLVER'] = makefile_options['RSOLVER_FILE'] = args['flux']

@@ -9,7 +9,7 @@
  * so it is efficient for use in matrix inversion.
  * adapted from Numerical Recipes in C, 2nd Ed., p. 47.
  */
-void lubksb(double **a, int n, int *indx, double b[])
+void lubksb(double **a, int n, int *indx, double *b)
 {
 	int i, ii = 0, ip, j;
 	double sum;
