@@ -52,7 +52,6 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
     ATHENA_ERROR(msg);
   }
 
-
   // find top and bot neighbor
   NeighborBlock ntop, nbot;
   bool has_top_neighbor = false;
@@ -71,32 +70,40 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   Real **w1;
   NewCArray(w1, 2, NHYDRO);
 
-  if (has_bot_neighbor) {
-    RecvBotPressure(psf_, entropy_, gamma_, nbot, kl, ku, jl, ju);
+  if (has_top_neighbor) {
+    RecvTopPressure(psf_, entropy_, gamma_, ntop, kl, ku, jl, ju);
   } else {
-    // bottom layer polytropic index and entropy
-    pthermo->PolytropicIndex(gamma_, w, kl, ku, jl, ju, is, is);
+    // top layer polytropic index and entropy
+    pthermo->PolytropicIndex(gamma_, w, kl, ku, jl, ju, ie, ie);
     for (int k = kl; k <= ku; ++k)
       for (int j = jl; j <= ju; ++j)
-        entropy_(k,j,is) = log(w(IPR,k,j,is)) - gamma_(k,j,is)*log(w(IDN,k,j,is));
+        entropy_(k,j,ie) = log(w(IPR,k,j,ie)) - gamma_(k,j,ie)*log(w(IDN,k,j,ie));
 
-    // outflow boundary condition
-    if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-      for (int k = kl; k <= ku; ++k)
-        for (int j = jl; j <= ju; ++j)
-          psf_(k,j,is) = w(IPR,k,j,is-1);
-    } else {  // reflecing boundary condition or else
-      // polynomical interpolation to find the pressure at bottom boundary
-      for (int k = kl; k <= ku; ++k)
-        for (int j = jl; j <= ju; ++j)
-          psf_(k,j,is) = exp(interp_cp6(log(w(IPR,k,j,is-3)), log(w(IPR,k,j,is-2)), 
-            log(w(IPR,k,j,is-1)), log(w(IPR,k,j,is)), log(w(IPR,k,j,is+1)), log(w(IPR,k,j,is+2))));
-    }
+    // adiabatic extrapolation
+    for (int k=kl; k<=ku; ++k)
+      for (int j=jl; j<=ju; ++j) {
+        Real P1 = w(IPR,k,j,ie);
+        Real T1 = pthermo->Temp(w.at(k,j,ie));
+        Real dz = pco->dx1f(ie);
+        for (int n = 0; n < NHYDRO; ++n)
+          w1[0][n] = w(n,k,j,ie);
+
+        // adiabatic extrapolation for half a grid
+        pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::reversible);
+        psf_(k,j,ie+1) = w1[1][IPR];
+
+        // outflow boundary condition
+        if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::outflow)
+#pragma omp simd
+          for (int n = 0; n < NHYDRO; ++n)
+            for (int i = 1; i <= NGHOST; ++i)
+              w(n,k,j,ie+i) = w1[1][n];
+      }
   }
-  IntegrateUpwards(psf_, w, pco, grav, kl, ku, jl, ju, is, ie);
+  IntegrateDownwards(psf_, w, pco, grav, kl, ku, jl, ju, is, ie);
   
-  if (has_top_neighbor)
-    SendBotPressure(psf_, entropy_, gamma_, ntop, kl, ku, jl, ju);
+  if (has_bot_neighbor)
+    SendTopPressure(psf_, entropy_, gamma_, nbot, kl, ku, jl, ju);
 
   // integrate ghost cells
   if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::reflect)
@@ -125,7 +132,7 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
           psv_(k,j,i) = (psf_(k,j,i) - psf_(k,j,i+1))/log(psf_(k,j,i)/psf_(k,j,i+1));
 
         // save reference adiabatic density profile
-        dsv_(k,j,i) = pow(psv_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
+        dsv_(k,j,i) = pow(psv_(k,j,i), 1./gamma_(k,j,ie))*exp(-entropy_(k,j,ie)/gamma_(k,j,ie));
 
         // change pressure/density to pertubation quantities
         w(IPR,k,j,i) -= psv_(k,j,i);
@@ -161,8 +168,8 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   }*/
 
   // finish send top pressure
-  if (has_top_neighbor && (ntop.snb.rank != Globals::my_rank))
-    WaitBotPressure();
+  if (has_bot_neighbor && (nbot.snb.rank != Globals::my_rank))
+    WaitTopPressure();
 
   FreeCArray(w1);
 }
@@ -182,7 +189,7 @@ void Hydro::AssemblePressure(AthenaArray<Real> &w,
   for (int i = il; i <= iu; ++i) {
     wr(IPR,i) += psf_(k,j,i);
     wl(IPR,i+1) += psf_(k,j,i+1);
-    wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
-    wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
+    wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,ie))*exp(-entropy_(k,j,ie)/gamma_(k,j,ie));
+    wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,ie))*exp(-entropy_(k,j,ie)/gamma_(k,j,ie));
   }
 }

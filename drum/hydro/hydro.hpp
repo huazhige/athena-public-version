@@ -95,18 +95,21 @@ class Hydro {
   void CheckHydro();
 
 protected:
-  //void SendBotPressure(AthenaArray<Real> &psf, NeighborBlock nbot,
-  //  int kl, int ku, int jl, int ju);
-  //void WaitBotPressure();
-  //void RecvTopPressure(AthenaArray<Real> &psf, NeighborBlock ntop,
-  //  int kl, int ku, int jl, int ju);
+  void SendTopPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+    AthenaArray<Real> &gamma, NeighborBlock nbot,
+    int kl, int ku, int jl, int ju);
+  void RecvTopPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
+    AthenaArray<Real> &gamma, NeighborBlock ntop,
+    int kl, int ku, int jl, int ju);
+  void WaitTopPressure();
+
   void SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
     AthenaArray<Real> &gamma, NeighborBlock ntop,
     int kl, int ku, int jl, int ju);
-  void WaitBotPressure();
   void RecvBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
     AthenaArray<Real> &gamma, NeighborBlock nbot,
     int kl, int ku, int jl, int ju);
+  void WaitBotPressure();
 
  private:
   AthenaArray<Real> dt1_, dt2_, dt3_;  // scratch arrays used in NewTimeStep
@@ -148,7 +151,6 @@ protected:
   AthenaArray<Real> dsv_;         // reference density at cell center
   AthenaArray<Real> gamma_;       // polytropic index
   AthenaArray<Real> entropy_;     // pseudo entropy
-  AthenaArray<Real> hydro_face_;  // scratch array stores hydro variables at cell face
   Real *psbuf_;                   // hydrostatic pressure buffer
 
 #ifdef MPI_PARALLEL
