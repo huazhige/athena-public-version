@@ -5,12 +5,18 @@
       #include <mpi.h>
     #endif
   }
+  [+:after AthenaArray<Real> flux[3]] {
+    AthenaArray<Real> du;       // du stores the change of the conservative variable in a substep
+    // implicit correction
+    int implicit_flag;
+  }
   [+:before private:] {
     ~Hydro();
     void DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int ju);
     void AssemblePressure(AthenaArray<Real> &w, AthenaArray<Real> &wl, AthenaArray<Real> &wr,
       int k, int j, int il, int iu);
     void CheckHydro();
+    void ImplicitCorrection(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt);
 
   protected:
     void SendBotPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
@@ -28,7 +34,6 @@
     AthenaArray<Real> dsv_;         // reference density at cell center
     AthenaArray<Real> gamma_;       // polytropic index
     AthenaArray<Real> entropy_;     // pseudo entropy
-    AthenaArray<Real> hydro_face_;  // scratch array stores hydro variables at cell face
 
   #ifdef MPI_PARALLEL
     MPI_Request req_send_bot_pressure_;
@@ -48,7 +53,12 @@
     // allocate local polytropic index
     gamma_.NewAthenaArray(nc3, nc2, nc1);
     entropy_.NewAthenaArray(nc3, nc2, nc1);
-    hydro_face_.NewAthenaArray(NHYDRO, nc3, nc2, nc1 + 1);
+
+    // du stores the change of the conservative variable in a substep
+    du.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+
+    // implicit correction
+    implicit_flag = pin->GetOrAddInteger("hydro", "implicit_flag", 0);
   }
 
 @@ hydro/calculate_fluxes.cpp
@@ -91,4 +101,7 @@
   [+:before if (fluid_status == FluidFormulation::evolve)] {
     for (int n = 0; n < NHYDRO; ++n)
       wi[n]=w(n,k,j,i);
+  }
+  [+:after compute minimum of (v1 +/- C)] {
+    if (!implicit_flag)
   }

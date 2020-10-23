@@ -152,10 +152,10 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
   entropy_.NewAthenaArray(nc3, nc2, nc1);
 
   // du stores the change of the conservative variable in a substep
-  //du.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+  du.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
 
   // implicit correction
-  //implicit_flag = pin->GetOrAddInteger("hydro", "implicit_flag", 0);
+  implicit_flag = pin->GetOrAddInteger("hydro", "implicit_flag", 0);
 }
 
 //----------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 configure.py
-  # Remove eigen and fits dependence
+  # Remove fits dependence
   [+:after --hdf5_path=path path to FFTW libraries] {
     #   -netcdf           enable NETCDF output (requires the NETCDF library)
     #   -pnetcdf          enable parallel-NETCDF output (requires the PNETCDF library)
@@ -71,6 +71,11 @@ configure.py
                         type=str,
                         default='',
                         help='path to parallel NETCDF libraries')
+    # --eigen_path argument
+    parser.add_argument('--eigen_path',
+                        type=str,
+                        default='../eigen335',
+                        help='path to EIGEN header files')
   }
   [+:after definitions['PROBLEM']] {
     makefile_options['PROBLEM'] = args['prob']
@@ -122,6 +127,9 @@ configure.py
         makefile_options['LIBRARY_FLAGS'] += ' -lpnetcdf'
     else:
       definitions['PNETCDF_OPTION'] = 'NO_PNETCDFOUTPUT'
+
+    # --eigen_path argument
+    makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s' % args['eigen_path']
   }
   [+:before makefile_options['PROBLEM_FILE'] += '.cpp'] {
     makefile_options['PROBLEM'] += '.ex'

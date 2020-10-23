@@ -183,6 +183,8 @@ class TimeIntegratorTaskList : public TaskList {
   TaskStatus ReceiveScalars(MeshBlock *pmb, int stage);
   TaskStatus SetBoundariesScalars(MeshBlock *pmb, int stage);
 
+  TaskStatus UpdateHydro(MeshBlock *pmb, int stage);
+
  private:
   IntegratorWeight stage_wghts[MAX_NSTAGE];
 
@@ -295,6 +297,8 @@ const TaskID DIFFUSE_SCLR(56);
 
 // const TaskID RECV_SCLRSH(57);
 // const TaskID SEND_SCLRSH(58);
+
+const TaskID UPDATE_HYD(70);
 
 }  // namespace HydroIntegratorTaskNames
 #endif  // TASK_LIST_TASK_LIST_HPP_

@@ -50,6 +50,9 @@ class Hydro {
   // (no more than MAX_NREGISTER allowed)
 
   AthenaArray<Real> flux[3];  // face-averaged flux vector
+  AthenaArray<Real> du;       // du stores the change of the conservative variable in a substep
+  // implicit correction
+  int implicit_flag;
 
   // storage for SMR/AMR
   // TODO(KGF): remove trailing underscore or revert to private:
@@ -93,6 +96,7 @@ class Hydro {
   void AssemblePressure(AthenaArray<Real> &w, AthenaArray<Real> &wl, AthenaArray<Real> &wr,
     int k, int j, int il, int iu);
   void CheckHydro();
+  void ImplicitCorrection(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt);
 
 protected:
   void SendTopPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
