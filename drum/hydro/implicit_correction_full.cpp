@@ -199,7 +199,7 @@ inline void PeriodicLinearSys(std::vector<Eigen::Matrix<Real,5,5>>& diag, std::v
 
 }
 
-void Hydro::ImplicitCorrection(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt)
+void Hydro::ImplicitCorrectionFull(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt)
 { 
   // Implicit Correction for i-direction.
   MeshBlock *pmb = pmy_block;

@@ -96,7 +96,8 @@ class Hydro {
   void AssemblePressure(AthenaArray<Real> &w, AthenaArray<Real> &wl, AthenaArray<Real> &wr,
     int k, int j, int il, int iu);
   void CheckHydro();
-  void ImplicitCorrection(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt);
+  void ImplicitCorrectionFull(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt);
+  void ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> const& w, Real dt);
 
 protected:
   void SendTopPressure(AthenaArray<Real> &psf, AthenaArray<Real> &entropy,
