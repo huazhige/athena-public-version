@@ -17,11 +17,8 @@ inline void IntegrateUpwards(AthenaArray<Real>& psf, AthenaArray<Real> const& w,
 {
   for (int k = kl; k <= ku; ++k)
     for (int j = jl; j <= ju; ++j)
-      for (int i = il; i <= iu; ++i) {
+      for (int i = il; i <= iu; ++i)
         psf(k,j,i+1) = psf(k,j,i) - grav*w(IDN,k,j,i)*pco->dx1f(i);
-        if (psf(k,j,i+1) < 0.)
-          psf(k,j,i+1) = psf(k,j,i)*exp(-grav*w(IDN,k,j,i)*pco->dx1f(i)/w(IPR,k,j,i));
-      }
 
 }
 
@@ -77,27 +74,17 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   if (has_bot_neighbor) {
     RecvBotPressure(psf_, entropy_, gamma_, nbot, kl, ku, jl, ju);
   } else {
-    // bottom layer polytropic index
+    // bottom layer polytropic index and entropy
     pthermo->PolytropicIndex(gamma_, w, kl, ku, jl, ju, is, is);
-    // bottom layer entropy
     for (int k = kl; k <= ku; ++k)
       for (int j = jl; j <= ju; ++j)
         entropy_(k,j,is) = log(w(IPR,k,j,is)) - gamma_(k,j,is)*log(w(IDN,k,j,is));
 
+    // outflow boundary condition
     if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-      // adiabatic extrapolation to bottom boundary
       for (int k = kl; k <= ku; ++k)
-        for (int j = jl; j <= ju; ++j) {
-          Real P1 = w(IPR,k,j,is-1);
-          Real T1 = pthermo->Temp(w.at(k,j,is-1));
-          Real dz = pco->dx1f(is-1);
-          for (int n = 0; n < NMASS; ++n)
-            w1[0][n] = w(n,k,j,is-1);
-          pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::reversible);
-          psf_(k,j,is) = w1[1][IPR];
-          for (int n = 0; n < NHYDRO; ++n)
-            hydro_face_(n,k,j,is) = w1[1][n];
-        }
+        for (int j = jl; j <= ju; ++j)
+          psf_(k,j,is) = w(IPR,k,j,is-1);
     } else {  // reflecing boundary condition or else
       // polynomical interpolation to find the pressure at bottom boundary
       for (int k = kl; k <= ku; ++k)
@@ -114,11 +101,15 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
   // integrate ghost cells
   if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::reflect)
     IntegrateDownwards(psf_, w, pco, -grav, kl, ku, jl, ju, is - NGHOST, is - 1);
+  else if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow)
+    IntegrateDownwards(psf_, w, pco,  0., kl, ku, jl, ju, is - NGHOST, is - 1);
   else  // block boundary
     IntegrateDownwards(psf_, w, pco,  grav, kl, ku, jl, ju, is - NGHOST, is - 1);
 
-  if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::reflect)
+  if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::reflect) {
     IntegrateUpwards(psf_, w, pco, -grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
+  } else if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::outflow)
+    IntegrateUpwards(psf_, w, pco,  0., kl, ku, jl, ju, ie + 1, ie + NGHOST);
   else  // block boundary
     IntegrateUpwards(psf_, w, pco,  grav, kl, ku, jl, ju, ie + 1, ie + NGHOST);
 
@@ -140,48 +131,6 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
         w(IPR,k,j,i) -= psv_(k,j,i);
         w(IDN,k,j,i) -= dsv_(k,j,i);
       }
-
-      // 2. override outflow bottom boundary
-      if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-        Real p1 = w(IPR,k,j,is);
-        Real p2 = w(IPR,k,j,is+1);
-        Real p3 = w(IPR,k,j,is+2);
-        // is-1
-        psv_(k,j,is-1) += w(IPR,k,j,is-1);
-        w(IPR,k,j,is-1) = inflection3_cell1(p1, p2, p3);
-        psv_(k,j,is-1) -= w(IPR,k,j,is-1);
-
-        // is-2
-        psv_(k,j,is-2) += w(IPR,k,j,is-2);
-        w(IPR,k,j,is-2) = inflection3_cell2(p1, p2, p3);
-        psv_(k,j,is-2) -= w(IPR,k,j,is-2);
-
-        // is-3
-        psv_(k,j,is-3) += w(IPR,k,j,is-3);
-        w(IPR,k,j,is-3) = inflection3_cell3(p1, p2, p3);
-        psv_(k,j,is-3) -= w(IPR,k,j,is-3);
-      }
-
-      // 3. override outflow top boundary
-      if (pmb->pbval->block_bcs[outer_x1] == BoundaryFlag::outflow) {
-        Real p1 = w(IPR,k,j,ie);
-        Real p2 = w(IPR,k,j,ie-1);
-        Real p3 = w(IPR,k,j,ie-2);
-        // ie+1
-        psv_(k,j,ie+1) += w(IPR,k,j,ie+1);
-        w(IPR,k,j,ie+1) = inflection3_cell1(p1, p2, p3);
-        psv_(k,j,ie+1) -= w(IPR,k,j,ie+1);
-
-        // ie+2
-        psv_(k,j,ie+2) += w(IPR,k,j,ie+2);
-        w(IPR,k,j,ie+2) = inflection3_cell2(p1, p2, p3);
-        psv_(k,j,ie+2) -= w(IPR,k,j,ie+2);
-        
-        // ie+3
-        psv_(k,j,ie+3) += w(IPR,k,j,ie+3);
-        w(IPR,k,j,ie+3) = inflection3_cell3(p1, p2, p3);
-        psv_(k,j,ie+3) -= w(IPR,k,j,ie+3);
-      }
     }
 
   /* debug
@@ -199,7 +148,7 @@ void Hydro::DecomposePressure(AthenaArray<Real> &w, int kl, int ku, int jl, int 
       std::cout << "psf = " << psf_(kl,jl,i) << std::endl;
       std::cout << "i = " << i  << "    ";
       //std::cout << "pre = " << w(IPR,kl,jl,i) << std::endl;
-      std::cout << "psv = " << psv_(kl,jl,i) + w(IPR,kl,jl,i) << " pre = " << w(IPR,kl,jl,i) 
+      std::cout << "psv = " << psv_(kl,jl,i) << " pre = " << w(IPR,kl,jl,i) 
                 << " dsv = " << dsv_(kl,jl,i) << " den = " << w(IDN,kl,jl,i) << std::endl;
       if (i == ie)
         std::cout << "-------- ";
@@ -235,11 +184,5 @@ void Hydro::AssemblePressure(AthenaArray<Real> &w,
     wl(IPR,i+1) += psf_(k,j,i+1);
     wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
     wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,is))*exp(-entropy_(k,j,is)/gamma_(k,j,is));
-  }
-
-  // override outflow bottom boundary
-  if (pmb->pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
-    wl(IPR,is) = psf_(k,j,is);
-    wl(IDN,is) = hydro_face_(IDN,k,j,is);
   }
 }

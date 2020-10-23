@@ -74,13 +74,23 @@ void EquationOfState::ConservedToPrimitive(
         for (int n = 1; n < NMASS; ++n)
           prim(n,k,j,i) = cons(n,k,j,i)*di;
 
+        #ifdef DEBUG
         if (std::isnan(w_d) || (w_d < density_floor_)) {  // IDN may be NAN
           msg << "### FATAL ERROR in function ConservedToPrimitive"
               << std::endl << "Density reaches lowest value: " << w_d
               << std::endl << "At position ("
-              << k << "," << j << "," << i << ") in rank " << Globals::my_rank;
+              << k << "," << j << "," << i << ") in rank " << Globals::my_rank <<
+              std::endl;
+          for (int ii = std::max(i-3, il); ii <= std::min(i+3, iu); ++ii) {
+          //for (int ii = il; ii <= iu; ++ii) {
+            msg << "i = " << ii << " ";
+            for (int jj = std::max(j-3, jl); jj <= std::min(j+3, ju); ++jj)
+              msg << cons(IDN,k,jj,ii) << " ";
+            msg << std::endl;
+          }
           ATHENA_ERROR(msg);
         }
+        #endif
 
         //Real di = 1.0/u_d;
         w_vx = u_m1*di;
@@ -104,13 +114,16 @@ void EquationOfState::ConservedToPrimitive(
         }
         w_p = gm1*(u_e - KE - LE)*feps/fsig;
 
+        #ifdef DEBUG
         if (std::isnan(w_p) || (w_p < pressure_floor_)) {
           msg << "### FATAL ERROR in function ConservedToPrimitive"
               << std::endl << "Pressure reaches lowest value: " << w_p
               << std::endl << "At position ("
-              << k << "," << j << "," << i << ") in rank " << Globals::my_rank;
+              << k << "," << j << "," << i << ") in rank " << Globals::my_rank <<
+              std::endl;
           ATHENA_ERROR(msg);
         }
+        #endif
       }
     }
   }

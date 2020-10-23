@@ -3,6 +3,7 @@
 
 // C/C++ headers
 #include <cstring>
+#include <sstream>
 
 // Athena++ headers
 #include "../../hydro.hpp"
@@ -11,12 +12,14 @@
 #include "../../../eos/eos.hpp"
 #include "../../../thermodynamics/thermodynamics.hpp"
 #include "../../../math/core.h" // sqr
+#include "../../../globals.hpp"
 
 void Hydro::RiemannSolver(int const k, int const j, int const il, int const iu, 
                           int const ivx,
                           AthenaArray<Real> &wl, AthenaArray<Real> &wr,
                           AthenaArray<Real> &flx, const AthenaArray<Real> &dxw)
 {
+  std::stringstream msg;
   int ivy = IVX + ((ivx-IVX)+1)%3;
   int ivz = IVX + ((ivx-IVX)+2)%3;
 
@@ -58,6 +61,30 @@ void Hydro::RiemannSolver(int const k, int const j, int const il, int const iu,
     }
     Real kappar = 1./(gamma - 1.)*fsig/feps;
 
+    #ifdef DEBUG
+    if (wli[IPR] + wri[IPR] < 0.) {
+      msg << "### FATAL ERROR in Riemann Solver LMARS"
+          << std::endl << "Pressure is negative: " << wli[IPR] << "," << wri[IPR]
+          << std::endl << "At position ("
+          << k << "," << j << "," << i << ") in rank " << Globals::my_rank;
+      ATHENA_ERROR(msg);
+    }
+    if (rhobar < 0.) {
+      msg << "### FATAL ERROR in Riemann Solver LMARS"
+          << std::endl << "Density is negative: " << wli[IDN] << "," << wri[IDN]
+          << std::endl << "At position ("
+          << k << "," << j << "," << i << ") in rank " << Globals::my_rank;
+      ATHENA_ERROR(msg);
+    }
+    if (!(kappal > 0.) || !(kappar > 0.)) {
+      msg << "### FATAL ERROR in Riemann Solver LMARS"
+          << std::endl << "Kappa is negative: " << kappal << "," << kappar
+          << std::endl << "At position ("
+          << k << "," << j << "," << i << ") in rank " << Globals::my_rank;
+      ATHENA_ERROR(msg);
+    }
+    #endif
+
     // enthalpy
     hl = wli[IPR]/wli[IDN]*(kappal + 1.) 
       + 0.5*(sqr(wli[ivx]) + sqr(wli[ivy]) + sqr(wli[ivz])) + lel;
@@ -65,7 +92,7 @@ void Hydro::RiemannSolver(int const k, int const j, int const il, int const iu,
       + 0.5*(sqr(wri[ivx]) + sqr(wri[ivy]) + sqr(wri[ivz])) + ler;
 
     rhobar = 0.5*(wli[IDN] + wri[IDN]);
-    cbar = sqrt(0.5*(1. + 1./kappar)*(wli[IPR]+ wri[IPR])/rhobar);
+    cbar = sqrt(0.5*(1. + (1./kappar + 1./kappal)/2.)*(wli[IPR]+ wri[IPR])/rhobar);
     pbar = 0.5*(wli[IPR] + wri[IPR]) + 0.5*(rhobar*cbar)*(wli[ivx] - wri[ivx]);
     ubar = 0.5*(wli[ivx] + wri[ivx]) + 0.5/(rhobar*cbar)*(wli[IPR] - wri[IPR]);
 

@@ -72,7 +72,7 @@ void ReadThermoProperty(Real var[], char const name[], int len, Real v0, Paramet
       msg << "### FATAL ERROR in function ReadThermoProperty"
           << std::endl << "Length of '" << name << "' "
           << "doesn't equal to " << len;
-      throw std::runtime_error(msg.str().c_str());
+      ATHENA_ERROR(msg);
     }
   }
 }

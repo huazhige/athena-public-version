@@ -37,41 +37,26 @@ void HydroBoundaryVariable::OutflowInnerX1(
 
 void HydroBoundaryVariable::OutflowOuterX1(
     Real time, Real dt, int iu, int jl, int ju, int kl, int ku, int ngh) {
-  // extend velocities
-  for (int n = IVX; n <= IVZ; ++n) {
-    for (int k=kl; k<=ku; ++k)
-      for (int j=jl; j<=ju; ++j)
-#pragma omp simd
-        for (int i=1; i<=ngh; ++i)
-          (*var_cc)(n,k,j,iu+i) = (*var_cc)(n,k,j,iu);
-  }
-
   Real **w1;
-  NewCArray(w1, 1+ngh, NHYDRO);
+  NewCArray(w1, 2, NHYDRO);
   Coordinates *pcoord = pmy_block_->pcoord;
   Thermodynamics *pthermo = pmy_block_->pthermo;
   Real grav = - pmy_block_->phydro->hsrc.GetG1();
 
-  // extrapolation based on temperature gradient
+  // adiabatic extrapolation
   for (int k=kl; k<=ku; ++k)
     for (int j=jl; j<=ju; ++j) {
       Real P1 = (*var_cc)(IPR,k,j,iu);
       Real T1 = pthermo->Temp(var_cc->at(k,j,iu));
       Real dz = pcoord->dx1v(iu);
-      /*for (int n = 0; n < NMASS; ++n)
-        w1[0][n] = (*var_cc)(n,k,j,iu-1);
-      pthermo->ConstructAdiabat(w1, T2, P2, grav, dz, 2, Adiabat::reversible);
-      dz = pcoord->dx1f(iu);
-      Real dTdz = std::max(T1 - pthermo->Temp(w1[1]), 0.)/dz;*/
-      for (int n = 0; n < NMASS; ++n)
+      for (int n = 0; n < NHYDRO; ++n)
         w1[0][n] = (*var_cc)(n,k,j,iu);
-      pthermo->ConstructAdiabat(w1, T1, P1, grav, dz, 1+ngh, Adiabat::reversible);
+      // adiabatic extrapolation for half a grid
+      pthermo->ConstructAdiabat(w1, T1, P1, grav, dz/2., 2, Adiabat::reversible);
 #pragma omp simd
-      for (int i = 1; i <= ngh; ++i) {
-        for (int n = 0; n < NMASS; ++n)
-          (*var_cc)(n,k,j,iu+i) = w1[i][n];
-        (*var_cc)(IPR,k,j,iu+i) = w1[i][IPR];
-      }
+      for (int n = 0; n < NHYDRO; ++n)
+        for (int i = 1; i <= ngh; ++i)
+          (*var_cc)(n,k,j,iu+i) = w1[1][n];
     }
 
   FreeCArray(w1);

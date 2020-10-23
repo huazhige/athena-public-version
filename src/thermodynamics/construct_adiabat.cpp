@@ -9,8 +9,6 @@
 void Thermodynamics::ConstructAdiabat(Real **w, Real Ts, Real Ps,
   Real grav, Real dz, int len, Adiabat method, Real dTdz) const
 {
-  //std::cout << "method=" << method << std::endl;
-  //std::cout << "dTdz=" << dTdz << std::endl;
   Real gamma = pmy_block_->peos->GetGamma();
 
   // mass to molar mixing ratio
@@ -42,5 +40,6 @@ void Thermodynamics::ConstructAdiabat(Real **w, Real Ts, Real Ps,
     rk4_integrate_z_adaptive(q1, isat, rcp, eps_, beta_, delta_, t3_, p3_, gamma,
       grav/Rd_, dz, ftol_, (int)method, dTdz);
     cut_hat(w[i], q1, eps_, Rd_);
+    for (int n = IVX; n <= IVZ; ++n) w[i][n] = w[0][n];
   }
 }

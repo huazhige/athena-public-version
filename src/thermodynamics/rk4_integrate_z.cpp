@@ -44,20 +44,19 @@ void rk4_integrate_z(Real q[], int isat[], Real rcp[], Real const eps[],
     chi[rk] = - qhat_eps(q, eps)/g_ov_Rd*dTdz[rk];
     
     // integrate over dz
+    Real chi_avg;
     if (rk < 3) {
       q[IDN] = temp + dTdz[rk]*dz*step[rk];
-      if (fabs(q[IDN] - temp) < 0.1) // isothermal limit
-        q[IPR] = pres*exp(-2.*g_ov_Rd*dz/(qhat_eps(q, eps)*(q[IDN] + temp)));
-      else
-        q[IPR] = pres*pow(q[IDN]/temp, 1./chi[rk]);
+      chi_avg = chi[rk];
     } else {
       q[IDN] = temp + 1./6.*(dTdz[0] + 2.*dTdz[1] + 2.*dTdz[2] + dTdz[3])*dz;
-      Real chi_avg = 1./6.*(chi[0] + 2.*chi[1] + 2.*chi[2] + chi[3]);
-      if (fabs(q[IDN] - temp) < 0.1) // isothermal limit
-        q[IPR] = pres*exp(-2.*g_ov_Rd*dz/(qhat_eps(q, eps)*(q[IDN] + temp)));
-      else
-        q[IPR] = pres*pow(q[IDN]/temp, 1./chi_avg);
+      chi_avg = 1./6.*(chi[0] + 2.*chi[1] + 2.*chi[2] + chi[3]);
     }
+    if (!(q[IDN] > 0.)) q[IDN] = temp;
+    if (fabs(q[IDN] - temp) > 0.1) // isothermal limit
+      q[IPR] = pres*pow(q[IDN]/temp, 1./chi_avg);
+    else
+      q[IPR] = pres*exp(-2.*g_ov_Rd*dz/(qhat_eps(q, eps)*(q[IDN] + temp)));
   }
 
   // recondensation

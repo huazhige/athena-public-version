@@ -111,12 +111,11 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
 
   if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
     for (int j = js-1; j <= je+1; ++j)
-      for (int i = is-1; i >= is-NGHOST; --i) {
-        Real x1 = pcoord->x1v(i);
-        Real temp = Ts - grav*x1/cp;
-        phydro->w(IPR,j,i) = p0*pow(temp/Ts, cp/Rd);
-        phydro->w(IDN,j,i) = phydro->w(IPR,j,i)/(Rd*temp);
-        phydro->w(IVX,j,i) = phydro->w(IVY,j,i) = 0.;
+      for (int i = 1; i <= NGHOST; ++i) {
+        Real temp = Ts - grav*pcoord->x1f(is)/cp;
+        phydro->w(IPR,j,is-i) = p0*pow(temp/Ts, cp/Rd);
+        phydro->w(IDN,j,is-i) = phydro->w(IPR,j,is-i)/(Rd*temp);
+        phydro->w(IVX,j,is-i) = phydro->w(IVY,j,is-i) = 0.;
       }
   }
 
