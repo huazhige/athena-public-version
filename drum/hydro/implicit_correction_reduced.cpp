@@ -143,10 +143,11 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
   Eigen::Matrix<Real,5,5> Am, Ap;
   Eigen::Matrix<Real,3,2> Am1, Ap1;
   Eigen::Matrix<Real,3,3> Am2, Ap2;
+  Eigen::Matrix<Real,3,1> rhs, sm, sp;
+  Eigen::Matrix<Real,2,1> dqm, dqp;
 
   Real prim[NHYDRO]; // Roe averaged primitive variables of cell i-1/2
 
-  std::vector<Eigen::Matrix<Real,3,1>> rhs(ncells1);
   std::vector<Eigen::Matrix<Real,3,3>> a(ncells1), b(ncells1), c(ncells1);
   std::vector<Eigen::Matrix<Real,3,1>> delta(ncells1);
 
@@ -229,6 +230,13 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
         b[i] = -(Am2 + dfdq2[i-1])*farea(i)/(2.*vol(i));
         c[i] = -(Ap2 - dfdq2[i+1])*farea(i+1)/(2.*vol(i));
 
+        // flux correction
+        dqm << du(IVY,k,j,i), du(IVZ,k,j,i);
+        dqp << du(IVY,k,j,i+1), du(IVZ,k,j,i+1);
+        sm = 0.5*((dfdq1[i-1] + Am1)*dqm + (dfdq1[i] - Am1)*dqp);
+        sp = 0.5*((dfdq1[i] + Ap1)*dqm + (dfdq1[i+1] - Ap1)*dqp);
+        corr[i] = (sp*farea(i+1) - sm*farea(i))/vol(i);
+
         // Shift one cell: i -> i+1
         Am1 = Ap1;
         Am2 = Ap2;
@@ -240,22 +248,24 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
 
       // 6. Thomas algorithm: solve tridiagonal system
       // first row, i=is
-      rhs[is](0) = du(IDN,k,j,is)/dt;
-      rhs[is](1) = du(IVX,k,j,is)/dt;
-      rhs[is](2) = du(IEN,k,j,is)/dt;
+      rhs(0) = du(IDN,k,j,is)/dt;
+      rhs(1) = du(IVX,k,j,is)/dt;
+      rhs(2) = du(IEN,k,j,is)/dt;
+      rhs -= corr[is];
 
       a[is] = a[is].inverse().eval();
-      delta[is] = a[is]*rhs[is];
+      delta[is] = a[is]*rhs;
       a[is] *= c[is];
        
       // forward
       for (int i = is+1; i <= ie; ++i) {
-        rhs[i](0) = du(IDN,k,j,i)/dt;
-        rhs[i](1) = du(IVX,k,j,i)/dt;
-        rhs[i](2) = du(IEN,k,j,i)/dt;
+        rhs(0) = du(IDN,k,j,i)/dt;
+        rhs(1) = du(IVX,k,j,i)/dt;
+        rhs(2) = du(IEN,k,j,i)/dt;
+        rhs -= corr[i];
 
         a[i] = (a[i] - b[i]*a[i-1]).inverse().eval();
-        delta[i] = a[i]*(rhs[i] - b[i]*delta[i-1]);
+        delta[i] = a[i]*(rhs - b[i]*delta[i-1]);
         a[i] *= c[i];
       }
 
