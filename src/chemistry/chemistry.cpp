@@ -102,7 +102,10 @@ void Chemistry::AddFrictionalHeating(AthenaArray<Real> &u,
 }
 
 void Chemistry::AssembleReactionMatrix(Real *r0, Real **r1, Real const q[], Real time)
-{}
+{
+  std::fill(*r1_, *r1_ + NMASS*NMASS, 0.);
+  std::fill(r0_, r0_ + NMASS, 0.);
+}
 
 void Chemistry::SedimentationVelocity(Real vsed[], Real const w[], Real temp)
 {

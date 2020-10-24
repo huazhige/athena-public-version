@@ -173,6 +173,7 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
           0.,    0.,    1.;
 
   Real *gamma_m1 = new Real [ncells1];
+  int idn = 0, ivx = 1, ivy = 2, ivz = 3, ien = 4;
 
   for (int k = ks; k <= ke; ++k)
     for (int j = js; j <= je; ++j) {
@@ -203,12 +204,12 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
       Eigenvalue(Lambda, prim[IVX], cs);
       Eigenvector(Rmat, Rimat, prim, cs, gm1);
       Am = Rmat*Lambda*Rimat;
-      Am1 << Am(IDN,IVY), Am(IDN,IVX),
-             Am(IVX,IVY), Am(IVX,IVZ),
-             Am(IEN,IVY), Am(IEN,IVZ);
-      Am2 << Am(IDN,IDN), Am(IDN,IVX), Am(IDN,IEN),
-             Am(IVX,IDN), Am(IVX,IVX), Am(IVX,IEN),
-             Am(IEN,IDN), Am(IEN,IVX), Am(IEN,IEN);
+      Am1 << Am(idn,ivy), Am(idn,ivz),
+             Am(ivx,ivy), Am(ivx,ivz),
+             Am(ien,ivy), Am(ien,ivz);
+      Am2 << Am(idn,idn), Am(idn,ivx), Am(idn,ien),
+             Am(ivx,idn), Am(ivx,ivx), Am(ivx,ien),
+             Am(ien,idn), Am(ien,ivx), Am(ien,ien);
 
       for (int i = is; i <= ie; ++i) {
         // right edge
@@ -217,12 +218,12 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
         Real cs = pmb->peos->SoundSpeed(prim);
         Eigenvector(Rmat, Rimat, prim, cs, gm1);
         Ap = Rmat*Lambda*Rimat;
-        Ap1 << Ap(IDN,IVY), Ap(IDN,IVX),
-               Ap(IVX,IVY), Ap(IVX,IVZ),
-               Ap(IEN,IVY), Ap(IEN,IVZ);
-        Ap2 << Ap(IDN,IDN), Ap(IDN,IVX), Ap(IDN,IEN),
-               Ap(IVX,IDN), Ap(IVX,IVX), Ap(IVX,IEN),
-               Ap(IEN,IDN), Ap(IEN,IVX), Ap(IEN,IEN);
+        Ap1 << Ap(idn,ivy), Ap(idn,ivz),
+               Ap(ivx,ivy), Ap(ivx,ivz),
+               Ap(ien,ivy), Ap(ien,ivz);
+        Ap2 << Ap(idn,idn), Ap(idn,ivx), Ap(idn,ien),
+               Ap(ivx,idn), Ap(ivx,ivx), Ap(ivx,ien),
+               Ap(ien,idn), Ap(ien,ivx), Ap(ien,ien);
 
         // set up diagonals a, b, c.
         a[i] = (Am2*farea(i) + Ap2*farea(i+1) + (farea(i+1) - farea(i))*dfdq2[i])/(2.*vol(i)) 

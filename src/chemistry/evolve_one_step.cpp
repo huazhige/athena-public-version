@@ -79,9 +79,6 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
         //std::cout << std::endl;
         //std::cout << "=========================" << std::endl;
 
-        // saturation adjustment
-        //pthermo->SaturationAdjustment(q1, rho, uhat);
-
         // from molar mixing ratio to density
         Real sum = 1.;
         for (int n = 1; n < NMASS; ++n)

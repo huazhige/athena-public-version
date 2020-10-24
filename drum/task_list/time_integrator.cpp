@@ -770,7 +770,7 @@ TaskStatus TimeIntegratorTaskList::IntegrateHydro(MeshBlock *pmb, int stage) {
       pmb->WeightedAve(ph->u, ph->u1, ph->u2, ave_wghts);
 
     const Real wght = stage_wghts[stage-1].beta*pmb->pmy_mesh->dt;
-    std::fill(ph->du.data(), ph->du.data() + ph->du.GetSize(), 0.);
+    ph->du.ZeroClear();
     ph->AddFluxDivergence(wght, ph->du);
     // add coordinate (geometric) source terms
     pmb->pcoord->AddCoordTermsDivergence(wght, ph->flux, ph->w, pf->bcc, ph->du);

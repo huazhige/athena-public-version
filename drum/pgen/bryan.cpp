@@ -134,27 +134,32 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
   // setup initial condition
   int kl = block_size.nx3 == 1 ? ks : ks-1;
   int ku = block_size.nx3 == 1 ? ke : ke+1;
+  int jl = block_size.nx2 == 1 ? js : js-1;
+  int ju = block_size.nx2 == 1 ? je : je+1;
   for (int i = is; i <= ie; ++i) {
     Real buf[NHYDRO];
     interpn(buf, &pcoord->x1v(i), *w1, z1, &nx1, 1, NHYDRO);
     buf[IVX] = buf[IVY] = buf[IVZ] = 0.;
-    for (int k = kl; k <= ku; ++k)
-      for (int j = js-1; j <= je+1; ++j)
-        for (int n = 0; n < NHYDRO; ++n)
+    for (int n = 0; n < NHYDRO; ++n)
+      for (int k = kl; k <= ku; ++k)
+        for (int j = jl; j <= ju; ++j)
           phydro->w(n,k,j,i) = buf[n];
   }
 
   // setup open lower boundary
   if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
     for (int k = kl; k <= ku; ++k)
-      for (int j = js-1; j <= je+1; ++j) {
+      for (int j = jl; j <= ju; ++j) {
         for (int n = 0; n < NHYDRO; ++n)
           w1[0][n] = phydro->w(n,k,j,is);
-        pthermo->ConstructAdiabat(w1, pthermo->Temp(w1[0]), w1[0][IPR],
-          grav, -pcoord->dx1f(is), 1+NGHOST, Adiabat::reversible);
-        for (int i = 1; i <= NGHOST; ++i)
-          for (int n = 0; n < NHYDRO; ++n)
-            phydro->w(n,k,j,is-i) = w1[i][n];
+        Real P1 = w1[0][IPR];
+        Real T1 = pthermo->Temp(w1[0]);
+        Real dz = pcoord->dx1f(is);
+        // adiabatic extrapolate half a grid down
+        pthermo->ConstructAdiabat(w1, T1, P1, grav, -dz/2., 2, Adiabat::reversible);
+        for (int n = 0; n < NHYDRO; ++n)
+          for (int i = 1; i <= NGHOST; ++i)
+            phydro->w(n,k,j,is-i) = w1[1][n];
       }
   }
 
