@@ -59,3 +59,15 @@ meshtest.dat
 
 # genhtml test case description format produced by gendesc
 *.desc
+
+# patch files
+patch_files
+
+# python compiled files
+*.pyc
+
+# netcdf outputs
+*.nc
+
+# junk files
+z.junk/

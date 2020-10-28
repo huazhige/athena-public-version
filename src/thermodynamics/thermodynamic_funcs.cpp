@@ -43,7 +43,6 @@ Real GasCloudIdeal(Real const q[], int iv, int ic,
 {
   Real xv = q[iv];
   Real xc = q[ic];
-  if (xv < 0.) return -std::max(xc, 0.);
   Real t = q[IDN]/t3;
   Real s;
   if (iv == AMMONIA_VAPOR_ID)
@@ -69,7 +68,7 @@ Real GasCloudIdeal(Real const q[], int iv, int ic,
   if (rate > 0.) rate = std::min(rate, xv);
 
   // evaporate at most xc cloud
-  if (rate < 0.) rate = std::max(rate, -xc);
+  if (rate < 0.) rate = std::min(0., std::max(rate, -xc));
   return rate;
 }
 

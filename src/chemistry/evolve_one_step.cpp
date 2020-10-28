@@ -48,6 +48,7 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
 
         // backward Euler
         std::fill(dq, dq + NMASS, 0.);
+        Real norm;
         while (iter++ < max_iter_) {
           AssembleReactionMatrix(r0_, r1_, q1, time);
 
@@ -59,8 +60,8 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
 
           solver.SolveIndependent(r1_, dq);
 
-          Real norm = 0;
-          for (int n = 0; n < NMASS; ++n)
+          norm = 0;
+          for (int n = 1; n < NMASS; ++n)
             norm += dq[n]*dq[n];
           if (std::sqrt(norm) < ftol_) break;
 
@@ -69,9 +70,12 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
             dq[n] = q1[n] - q0[n];
           }
           pthermo->UpdateTPConservingU(q1, rho, uhat);
+          //std::cout << "norm = " << norm << std::endl;
         }
 
         //std::cout << "==== iter ends ===="<< std::endl;
+        //std::cout << "iter = " << iter << std::endl;
+        //std::cout << "norm = " << norm << std::endl;
 
         // debug
         //for (int n = 0; n < NMASS; ++n)
