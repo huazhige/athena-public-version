@@ -308,6 +308,17 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
 
   // load hydro and field data
   std::memcpy(phydro->u.data(), &(mbdata[os]), phydro->u.GetSizeInBytes());
+  // outflow boundary condition
+  if (pbval->block_bcs[inner_x1] == BoundaryFlag::outflow) {
+    int kl = block_size.nx3 == 1 ? ks : ks-NGHOST;
+    int ku = block_size.nx3 == 1 ? ke : ke+NGHOST;
+    int jl = block_size.nx2 == 1 ? js : js-NGHOST;
+    int ju = block_size.nx2 == 1 ? je : je+NGHOST;
+    peos->ConservedToPrimitive(phydro->u, phydro->w1, pfield->b,
+                                          phydro->w, pfield->bcc, pcoord,
+                                          is-NGHOST, is-1, jl, ju, kl, ku);
+    phydro->w1 = phydro->w;
+  }
   // load it into the other memory register(s) too
   std::memcpy(phydro->u1.data(), &(mbdata[os]), phydro->u1.GetSizeInBytes());
   os += phydro->u.GetSizeInBytes();

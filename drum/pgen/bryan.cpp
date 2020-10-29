@@ -132,10 +132,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
     z1[i] = z1[i-1] + dz;
 
   // setup initial condition
-  int kl = block_size.nx3 == 1 ? ks : ks-1;
-  int ku = block_size.nx3 == 1 ? ke : ke+1;
-  int jl = block_size.nx2 == 1 ? js : js-1;
-  int ju = block_size.nx2 == 1 ? je : je+1;
+  int kl = block_size.nx3 == 1 ? ks : ks-NGHOST;
+  int ku = block_size.nx3 == 1 ? ke : ke+NGHOST;
+  int jl = block_size.nx2 == 1 ? js : js-NGHOST;
+  int ju = block_size.nx2 == 1 ? je : je+NGHOST;
   for (int i = is; i <= ie; ++i) {
     Real buf[NHYDRO];
     interpn(buf, &pcoord->x1v(i), *w1, z1, &nx1, 1, NHYDRO);

@@ -47,7 +47,7 @@ void EquationOfState::ConservedToPrimitive(
   Real gm1 = GetGamma() - 1.0;
   std::stringstream msg;
   Thermodynamics *pthermo = pmy_block_->pthermo;
-  
+
   for (int k=kl; k<=ku; ++k) {
     for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
@@ -82,7 +82,6 @@ void EquationOfState::ConservedToPrimitive(
               << k << "," << j << "," << i << ") in rank " << Globals::my_rank <<
               std::endl;
           for (int ii = std::max(i-3, il); ii <= std::min(i+3, iu); ++ii) {
-          //for (int ii = il; ii <= iu; ++ii) {
             msg << "i = " << ii << " ";
             for (int jj = std::max(j-3, jl); jj <= std::min(j+3, ju); ++jj)
               msg << cons(IDN,k,jj,ii) << " ";
