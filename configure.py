@@ -472,6 +472,10 @@ definitions['NHYDRO_VARIABLES'] = str(int(definitions['NHYDRO_VARIABLES'])
 definitions['WATER_VAPOR_ID'] = args['h2o']
 definitions['AMMONIA_VAPOR_ID'] = args['nh3']
 definitions['RAT1'] = args['x1rat']
+if args['x1rat'] == '1.0':
+  definitions['STRETCHED_GRID'] = 'UNIFORM_GRID'
+else:
+  definitions['STRETCHED_GRID'] = 'STRETCHED_GRID'
 
 # --chem=[name] argument
 definitions['CHEMISTRY'] = args['chem']

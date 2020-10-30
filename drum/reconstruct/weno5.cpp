@@ -12,9 +12,13 @@
 #include "../athena_arrays.hpp"
 #include "../hydro/hydro.hpp"
 #include "../mesh/mesh.hpp"
-#include "interpolation.hpp"
-//#include "interp_weno5.hpp"
-//#include "interp_weno3.hpp"
+
+#ifdef UNIFORM_GRID
+  #include "interpolation.hpp"
+#else
+  #include "interp_weno5.hpp"
+  #include "interp_weno3.hpp"
+#endif
 
 //----------------------------------------------------------------------------------------
 //! \fn Reconstruction::Weno5X1()
