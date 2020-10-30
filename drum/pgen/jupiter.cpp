@@ -96,10 +96,16 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin)
   // construct a 1D pseudo-moist adiabat with given relative humidity
   Real x1min = pmy_mesh->mesh_size.x1min;
   Real x1max = pmy_mesh->mesh_size.x1max;
+  Real x1rat = pmy_mesh->mesh_size.x1rat;
 
-  int nx1 = 2*pmy_mesh->mesh_size.nx1 + 1;
-  Real dz = (x1max - x1min)/(nx1 - 1);
-  Real **w1, *z1, *p1, *t1;
+  Real dz, **w1, *z1, *p1, *t1;
+  if (x1rat != 1.0) {
+    dz = (x1max - x1min)*(x1rat - 1.)/(pow(x1rat, pmy_mesh->mesh_size.nx1) - 1.);
+    dz = std::min(dz, dz*pow(x1rat, pmy_mesh->mesh_size.nx1))/2.;
+  } else {
+    dz = (x1max - x1min)/pmy_mesh->mesh_size.nx1/2.;
+  }
+  int nx1 = (int)((x1max - x1min)/dz);
   NewCArray(w1, nx1, NHYDRO);
   z1 = new Real [nx1];
   p1 = new Real [nx1];

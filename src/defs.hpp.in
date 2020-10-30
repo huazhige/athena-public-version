@@ -121,6 +121,10 @@
 #define AMMONIA_VAPOR_ID  @AMMONIA_VAPOR_ID@
 
 //----------------------------------------------------------------------------------------
+// stretch grid size ratio
+#define RAT1 @RAT1@
+
+//----------------------------------------------------------------------------------------
 // general purpose macros (never modified)
 
 // all constants specified to 17 total digits of precision = max_digits10 for "double"

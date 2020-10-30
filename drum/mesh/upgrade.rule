@@ -12,6 +12,9 @@
     pmb->phydro->CheckHydro();
   }
 @@ mesh/meshblock.cpp
+  [r:in pin->GetOrAddReal("mesh", "x1rat", 1.0)] {
+    1.0 -> RAT1
+  }
   [+:in header/Athena++] {
     #include "../thermodynamics/thermodynamics.hpp"
     #include "../chemistry/chemistry.hpp"

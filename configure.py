@@ -261,6 +261,11 @@ parser.add_argument('--nh3',
                     default='-1',
                     help='ammonia vapor id')
 
+# --nh3=[value] argument
+parser.add_argument('--x1rat',
+                    default='1.0',
+                    help='x1 grid size ratio')
+
 # -netcdf argument
 parser.add_argument('-netcdf',
                     action='store_true',
@@ -466,6 +471,7 @@ definitions['NHYDRO_VARIABLES'] = str(int(definitions['NHYDRO_VARIABLES'])
                                     + int(args['nphase'])*int(args['nvapor']))
 definitions['WATER_VAPOR_ID'] = args['h2o']
 definitions['AMMONIA_VAPOR_ID'] = args['nh3']
+definitions['RAT1'] = args['x1rat']
 
 # --chem=[name] argument
 definitions['CHEMISTRY'] = args['chem']
@@ -912,6 +918,7 @@ elif args['grav'] == 'mg':
 print('Your Athena++ distribution has now been configured with the following options:')
 print('  Problem generator:          ' + args['prob'])
 print('  Coordinate system:          ' + args['coord'])
+print('  X1 Grid ratio:              ' + args['x1rat'])
 print('  Equation of state:          ' + args['eos'])
 print('  Ammonia vapor id:           ' + args['nh3'])
 print('  Water vapor id:             ' + args['h2o'])

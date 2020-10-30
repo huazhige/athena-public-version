@@ -65,7 +65,7 @@ Mesh::Mesh(ParameterInput *pin, int mesh_test) :
     mesh_size{pin->GetReal("mesh", "x1min"), pin->GetReal("mesh", "x2min"),
               pin->GetReal("mesh", "x3min"), pin->GetReal("mesh", "x1max"),
               pin->GetReal("mesh", "x2max"), pin->GetReal("mesh", "x3max"),
-              pin->GetOrAddReal("mesh", "x1rat", 1.0),
+              pin->GetOrAddReal("mesh", "x1rat", RAT1),
               pin->GetOrAddReal("mesh", "x2rat", 1.0),
               pin->GetOrAddReal("mesh", "x3rat", 1.0),
               pin->GetInteger("mesh", "nx1"), pin->GetInteger("mesh", "nx2"),

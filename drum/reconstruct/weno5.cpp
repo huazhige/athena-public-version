@@ -13,6 +13,8 @@
 #include "../hydro/hydro.hpp"
 #include "../mesh/mesh.hpp"
 #include "interpolation.hpp"
+//#include "interp_weno5.hpp"
+//#include "interp_weno3.hpp"
 
 //----------------------------------------------------------------------------------------
 //! \fn Reconstruction::Weno5X1()
@@ -25,22 +27,22 @@ void Reconstruction::Weno5X1(const int k, const int j, const int il, const int i
   for (int n=0; n<=NVAPOR; ++n) 
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i+1) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
-      wr(n,i) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wl(n,i+1) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wr(n,i) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
     }
 
   for (int n=NVAPOR+1; n<NMASS; ++n) 
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i+1) = interp_weno3(w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1));
-      wr(n,i) = interp_weno3(w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1));
+      wl(n,i+1) = interp_weno3(w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1));
+      wr(n,i) = interp_weno3(w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1));
     }
 
   for (int n=NMASS; n<NHYDRO; ++n) {
 #pragma omp simd
     for (int i=il; i<=il+1; ++i) {
-      wl(n,i+1) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
-      wr(n,i) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wl(n,i+1) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wr(n,i) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
     }
 
 #pragma omp simd
@@ -51,8 +53,8 @@ void Reconstruction::Weno5X1(const int k, const int j, const int il, const int i
 
 #pragma omp simd
     for (int i=iu-1; i<=iu; ++i) {
-      wl(n,i+1) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
-      wr(n,i) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wl(n,i+1) = interp_weno5(w(n,k,j,i+2),w(n,k,j,i+1),w(n,k,j,i),w(n,k,j,i-1),w(n,k,j,i-2));
+      wr(n,i) = interp_weno5(w(n,k,j,i-2),w(n,k,j,i-1),w(n,k,j,i),w(n,k,j,i+1),w(n,k,j,i+2));
     }
   }
 
@@ -70,15 +72,15 @@ void Reconstruction::Weno5X2(const int k, const int j, const int il, const int i
   for (int n=0; n<=NVAPOR; ++n)
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i) = interp_weno5(w(n,k,j-2,i),w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i),w(n,k,j+2,i));
-      wr(n,i) = interp_weno5(w(n,k,j+2,i),w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i),w(n,k,j-2,i));
+      wl(n,i) = interp_weno5(w(n,k,j+2,i),w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i),w(n,k,j-2,i));
+      wr(n,i) = interp_weno5(w(n,k,j-2,i),w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i),w(n,k,j+2,i));
     }
 
   for (int n=NVAPOR+1; n<NMASS; ++n) 
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i) = interp_weno3(w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i));
-      wr(n,i) = interp_weno3(w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i));
+      wl(n,i) = interp_weno3(w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i));
+      wr(n,i) = interp_weno3(w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i));
     }
 
   for (int n=NMASS; n<NHYDRO; ++n)
@@ -102,15 +104,15 @@ void Reconstruction::Weno5X3(const int k, const int j, const int il, const int i
   for (int n=0; n<=NVAPOR; ++n)
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i) = interp_weno5(w(n,k-2,j,i),w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i),w(n,k+2,j,i));
-      wr(n,i) = interp_weno5(w(n,k+2,j,i),w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i),w(n,k-2,j,i));
+      wl(n,i) = interp_weno5(w(n,k+2,j,i),w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i),w(n,k-2,j,i));
+      wr(n,i) = interp_weno5(w(n,k-2,j,i),w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i),w(n,k+2,j,i));
     }
 
   for (int n=NVAPOR+1; n<NMASS; ++n) 
 #pragma omp simd
     for (int i=il; i<=iu; ++i) {
-      wl(n,i) = interp_weno3(w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i));
-      wr(n,i) = interp_weno3(w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i));
+      wl(n,i) = interp_weno3(w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i));
+      wr(n,i) = interp_weno3(w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i));
     }
 
   for (int n=NMASS; n<NHYDRO; ++n)
