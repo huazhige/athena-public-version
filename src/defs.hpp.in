@@ -121,8 +121,11 @@
 #define AMMONIA_VAPOR_ID  @AMMONIA_VAPOR_ID@
 
 //----------------------------------------------------------------------------------------
-// stretch grid size ratio
+// stretched grid size ratio
 #define RAT1 @RAT1@
+
+// STRETCHED_GRID or UNIFORM_GRID
+#define @STRETCHED_GRID@
 
 //----------------------------------------------------------------------------------------
 // general purpose macros (never modified)
