@@ -31,15 +31,15 @@ void Thermodynamics::SaturationAdjustment(AthenaArray<Real> &u) const
         for (int n = 0; n < NMASS; ++n)
           q[n] /= rho_hat;
 
-        // save q for debug purpose
-        memcpy(q0, q, NHYDRO*sizeof(Real));
-
         // calculate internal energy
         Real KE = 0.5*(u(IM1,k,j,i)*u(IM1,k,j,i) 
                      + u(IM2,k,j,i)*u(IM2,k,j,i)
                      + u(IM3,k,j,i)*u(IM3,k,j,i))/rho;
         Real uhat = (u(IEN,k,j,i) - KE)/(Rd_*rho_hat);
         UpdateTPConservingU(q, rho, uhat);
+
+        // save q for debug purpose
+        memcpy(q0, q, NHYDRO*sizeof(Real));
 
         // check boiling condition
         for (int n = 1; n <= NVAPOR; ++n) {

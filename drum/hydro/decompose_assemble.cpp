@@ -188,7 +188,9 @@ void Hydro::AssemblePressure(AthenaArray<Real> &w,
 
   for (int i = il; i <= iu; ++i) {
     wr(IPR,i) += psf_(k,j,i);
+    if (wr(IPR,i) < 0.) wr(IPR,i) = psf_(k,j,i);
     wl(IPR,i+1) += psf_(k,j,i+1);
+    if (wl(IPR,i+1) < 0.) wl(IPR,i+1) = psf_(k,j,i+1);
     wr(IDN,i) += pow(psf_(k,j,i), 1./gamma_(k,j,ie))*exp(-entropy_(k,j,ie)/gamma_(k,j,ie));
     wl(IDN,i+1) += pow(psf_(k,j,i+1), 1./gamma_(k,j,ie))*exp(-entropy_(k,j,ie)/gamma_(k,j,ie));
   }

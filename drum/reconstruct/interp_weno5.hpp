@@ -1,6 +1,5 @@
 #ifndef INTERP_WENO5_HPP_
 #define INTERP_WENO5_HPP_
-//#include <iostream>
 #include "../defs.hpp"
 
 namespace Weno5Coeff {
@@ -52,7 +51,7 @@ namespace Weno5Coeff {
   double c4[5] = {-513./1440., -513./1440., -673./1440., 5087./1440., -3328./1440.};
 }
 
-inline Real interp_weno5(Real phim2, Real phim1, Real phi, Real phip1, Real phip2) {
+inline Real interp_weno5x1(Real phim2, Real phim1, Real phi, Real phip1, Real phip2) {
   using namespace Weno5Coeff;
   Real p1 = 0, p2 = 0, p3 = 0;
   Real phis[5] = {phim2, phim1, phi, phip1, phip2};
@@ -74,18 +73,14 @@ inline Real interp_weno5(Real phim2, Real phim1, Real phi, Real phip1, Real phip
     b3 += (beta3[0][i] + beta3[1][i]*eps + beta3[2][i]*eps*eps)*pp3[i];
   }
 
-  //std::cout << b1 << " " << b2 << " " << b3 << std::endl;
-
   Real a1 = wght[0]/((b1 + 1.E-10)*(b1 + 1.E-10));
   Real a2 = wght[1]/((b2 + 1.E-10)*(b2 + 1.E-10));
   Real a3 = wght[2]/((b3 + 1.E-10)*(b3 + 1.E-10));
 
-  //std::cout << wght[0] << " " << wght[1] << " " << wght[2] << std::endl;
-
   return (a1*p1 + a2*p2 + a3*p3)/(a1 + a2 + a3);
 }
 
-inline Real interp_cp5(Real phim2, Real phim1, Real phi, Real phip1, Real phip2) {
+inline Real interp_cp5x1(Real phim2, Real phim1, Real phi, Real phip1, Real phip2) {
   using namespace Weno5Coeff;
   Real phis[5] = {phim2, phim1, phi, phip1, phip2};
   Real result = 0.;

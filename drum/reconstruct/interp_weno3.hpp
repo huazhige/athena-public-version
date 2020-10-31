@@ -26,11 +26,10 @@ namespace Weno3Coeff {
     };
 }
 
-inline Real interp_weno3(Real phim1, Real phi, Real phip1) {
+inline Real interp_weno3x1(Real phim1, Real phi, Real phip1) {
   using namespace Weno3Coeff;
   Real p1 = a1[0]*phim1 + a1[1]*phi;
   Real p2 = a2[0]*phi + a2[1]*phip1;
-  //std::cout << p1 << " " << p2 << std::endl;
 
   Real eps = RAT1 - 1.;
   Real pp1[3] = {phim1*phim1, phim1*phi, phi*phi};
@@ -43,18 +42,13 @@ inline Real interp_weno3(Real phim1, Real phi, Real phip1) {
   for (int i = 0; i < 3; ++i)
     b2 += (beta2[0][i] + beta2[1][i]*eps)*eps*eps*pp2[i];
 
-  //std::cout << b1 << " " << b2 << std::endl;
-
-  Real w1 = wght[0]/((b1 + 1.E-6)*(b1 + 1.E-6));
-  Real w2 = wght[1]/((b2 + 1.E-6)*(b2 + 1.E-6));
-
-  //std::cout << wght[0] << " " << wght[1]  << std::endl;
-  //std::cout << w1 << " " << w2 << std::endl;
+  Real w1 = wght[0]/((b1 + 1.E-10)*(b1 + 1.E-10));
+  Real w2 = wght[1]/((b2 + 1.E-10)*(b2 + 1.E-10));
 
   return (w1*p1 + w2*p2)/(w1 + w2);
 }
 
-inline Real interp_cp3(Real phim1, Real phi, Real phip1) {
+inline Real interp_cp3x1(Real phim1, Real phi, Real phip1) {
   using namespace Weno3Coeff;
   return c1[0]*phim1 + c1[1]*phi + c1[2]*phip1;
 }
