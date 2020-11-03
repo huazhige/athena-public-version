@@ -20,6 +20,10 @@
 enum {iH2O = 1, iNH3 = 2, iH2Oc = 3, iNH3c = 4, iH2Op = 5, iNH3p = 6};
 Real grav, P0, T0, Tmin, prad, hrate, sponge_tau;
 
+// polar geometry parameters
+bool use_polar_beta;
+Real radius, omega, sponge_lat;
+
 void MeshBlock::InitUserMeshBlockData(ParameterInput *pin)
 {
   AllocateUserOutputVariables(6);
@@ -61,6 +65,26 @@ void Forcing(MeshBlock *pmb, Real const time, Real const dt,
   for (int k = ks; k <= ke; ++k)
     for (int j = js; j <= je; ++j)
       for (int i = is; i <= ie; ++i) {
+        // polar beta
+        if (use_polar_beta) {
+          Real x2 = pmb->pcoord->x2v(j);
+          Real x3 = pmb->pcoord->x3v(k);
+          Real dist = sqrt(x2*x2 + x3*x3);
+
+          // coriolis force
+          Real fcor = 2.*omega*cos(dist/radius);   //not approximated
+          u(IM2,k,j,i) += dt*fcor*w(IDN,k,j,i)*w(IM3,k,j,i);
+          u(IM3,k,j,i) -= dt*fcor*w(IDN,k,j,i)*w(IM2,k,j,i);
+
+          // sponge layer
+          Real s = (90. - dist/radius/M_PI*180.)/sponge_lat;
+          if (s < 1) {
+            u(IM1,k,j,i) -= dt*w(IDN,k,j,i)*w(IM1,k,j,i)*pow((1.-s), 2)/sponge_tau;
+            u(IM2,k,j,i) -= dt*w(IDN,k,j,i)*w(IM2,k,j,i)*pow((1.-s), 2)/sponge_tau;
+            u(IM3,k,j,i) -= dt*w(IDN,k,j,i)*w(IM3,k,j,i)*pow((1.-s), 2)/sponge_tau;
+          }
+        }
+
         Real cv = pthermo->Cv(w.at(k,j,i));
         if (w(IPR,k,j,i) < prad) {
           u(IEN,k,j,i) += dt*hrate*w(IDN,k,j,i)*cv*(1. +
@@ -82,7 +106,15 @@ void Mesh::InitUserMeshData(ParameterInput *pin)
   Tmin = pin->GetReal("problem", "Tmin");
   prad = pin->GetReal("problem", "prad");
   hrate = pin->GetReal("problem", "hrate")/86400.;  // K/day to K/s
-  sponge_tau = pin->GetReal("hydro", "osponge1_tau");
+  sponge_tau = pin->GetReal("problem", "sponge_tau");
+
+  // polar beta geometry
+  use_polar_beta = pin->GetOrAddBoolean("problem", "use_polar_beta", false);
+  if (use_polar_beta) {
+    radius = pin->GetReal("problem", "radius");
+    omega = pin->GetReal("problem", "omega");
+    sponge_lat = pin->GetReal("problem", "sponge_lat");
+  }
 
   EnrollUserExplicitSourceFunction(Forcing);
 }

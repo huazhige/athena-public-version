@@ -97,6 +97,7 @@
 #include "../mesh/mesh.hpp"
 #include "../parameter_input.hpp"
 #include "../scalars/scalars.hpp"
+#include "../diagnostics/diagnostics.hpp"
 #include "outputs.hpp"
 
 //----------------------------------------------------------------------------------------
@@ -349,6 +350,7 @@ void OutputType::LoadOutputData(MeshBlock *pmb) {
   Field *pfld = pmb->pfield;
   PassiveScalars *psclr = pmb->pscalars;
   Gravity *pgrav = pmb->pgrav;
+  Diagnostics *pdiag = pmb->pdiag;
   num_vars_ = 0;
   OutputData *pod;
 
@@ -710,7 +712,7 @@ void OutputType::LoadOutputData(MeshBlock *pmb) {
     }
   }
 
-  /* diagnostic
+  // diagnostic
   if (output_params.variable.compare("diag") == 0) {
     Diagnostics *p = pdiag->next;
     while (p != NULL) {
@@ -725,7 +727,7 @@ void OutputType::LoadOutputData(MeshBlock *pmb) {
         AppendOutputDataNode(pod);
         num_vars_ += NHYDRO;
       } else {
-        pod->data.InitWithShallowCopy(p->data);
+        pod->data.InitWithShallowSlice(p->data,4,0,p->data.GetDim4());
         AppendOutputDataNode(pod);
         num_vars_ += pod->data.GetDim4();
       }
@@ -733,7 +735,8 @@ void OutputType::LoadOutputData(MeshBlock *pmb) {
       p = p->next;
     }
   }
-  // radiation
+
+  /* radiation
   if (output_params.variable.compare("rad") == 0 ||
       output_params.variable.compare("radtau") == 0) {
     RadiationBand *p = prad->pband;

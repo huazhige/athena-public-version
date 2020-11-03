@@ -40,6 +40,7 @@
 #include "meshblock_tree.hpp"
 #include "../thermodynamics/thermodynamics.hpp"
 #include "../chemistry/chemistry.hpp"
+#include "../diagnostics/diagnostics.hpp"
 
 //----------------------------------------------------------------------------------------
 // MeshBlock constructor: constructs coordinate, boundary condition, hydro, field
@@ -179,6 +180,7 @@ MeshBlock::MeshBlock(int igid, int ilid, LogicalLocation iloc, RegionSize input_
   } else {
     pchem = new Chemistry(this, pin);
   }
+  pdiag = new Diagnostics(this, pin);
 
   // Create user mesh data
   InitUserMeshBlockData(pin);
@@ -300,6 +302,7 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
   } else {
     pchem = new Chemistry(this, pin);
   }
+  pdiag = new Diagnostics(this, pin);
 
   InitUserMeshBlockData(pin);
 
@@ -392,6 +395,7 @@ MeshBlock::~MeshBlock() {
 
   delete pthermo;
   delete pchem;
+  delete pdiag;
 }
 
 //----------------------------------------------------------------------------------------
