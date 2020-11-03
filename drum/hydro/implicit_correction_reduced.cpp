@@ -15,7 +15,7 @@
 #include "../eos/eos.hpp"
 #include "../hydro/hydro.hpp"
 #include "../thermodynamics/thermodynamics.hpp"
-#include "hydro.hpp"
+#include "vertical_communication.hpp"
 
 inline void RoeAverage(Real prim[], Real gm1, AthenaArray<Real> const& w, int k, int j, int i)
 {
@@ -175,6 +175,8 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
   Real *gamma_m1 = new Real [ncells1];
   int idn = 0, ivx = 1, ivy = 2, ivz = 3, ien = 4;
 
+  pvc->FindNeighbors();
+
   for (int k = ks; k <= ke; ++k)
     for (int j = js; j <= je; ++j) {
       pcoord->Face1Area(k, j, is, ie+1, farea);
@@ -244,8 +246,10 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
       }
 
       // 5. fix boundary condition
-      a[is] += b[is]*Bnd;
-      a[ie] += c[ie]*Bnd;
+      if (!pvc->has_bot_neighbor)
+        a[is] += b[is]*Bnd;
+      if (!pvc->has_top_neighbor)
+        a[ie] += c[ie]*Bnd;
 
       // 6. Thomas algorithm: solve tridiagonal system
       // first row, i=is
@@ -254,9 +258,16 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
       rhs(2) = du(IEN,k,j,is)/dt;
       rhs -= corr[is];
 
-      a[is] = a[is].inverse().eval();
-      delta[is] = a[is]*rhs;
-      a[is] *= c[is];
+      if (!pvc->has_bot_neighbor) {
+        a[is] = a[is].inverse().eval();
+        delta[is] = a[is]*rhs;
+        a[is] *= c[is];
+      } else {
+        pvc->RecvBotImplicitData(a[is-1], delta[is-1], k, j, pvc->bblock);
+        a[is] = (a[is] - b[is]*a[is-1]).inverse().eval();
+        delta[is] = a[is]*(rhs - b[is]*delta[is-1]);
+        a[is] *= c[is];
+      }
        
       // forward
       for (int i = is+1; i <= ie; ++i) {
@@ -270,6 +281,21 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
         a[i] *= c[i];
       }
 
+      pvc->SaveImplicitData(a, delta, k, j, is, ie);
+
+      if (pvc->has_top_neighbor)
+        pvc->SendTopImplicitData(a[ie], delta[ie], k, j, pvc->tblock);
+    }
+
+  // back substitution
+  for (int k = ks; k <= ke; ++k)
+    for (int j = js; j <= je; ++j) {
+      pvc->LoadImplicitData(a, delta, k, j, is, ie);
+      if (pvc->has_top_neighbor) {
+        pvc->RecvTopImplicitData(delta[ie+1], k, j, pvc->tblock);
+        delta[ie] -= a[ie]*delta[ie+1];
+      }
+
       // update solutions, i=ie
       for (int i = ie-1; i >= is; --i)
         delta[i] -= a[i]*delta[i+1];
@@ -280,7 +306,16 @@ void Hydro::ImplicitCorrectionReduced(AthenaArray<Real> &du, AthenaArray<Real> c
         du(IVX,k,j,i) = delta[i](1);
         du(IEN,k,j,i) = delta[i](2);
       }
+
+      if (pvc->has_bot_neighbor)
+        pvc->SendBotImplicitData(delta[is], k, j, pvc->bblock);
     }
+
+  if (pvc->has_top_neighbor)
+    pvc->WaitSendTopImplicit(ks, ke, js, je);
+
+  if (pvc->has_bot_neighbor)
+    pvc->WaitSendBotImplicit(ks, ke, js, je);
 
   delete [] gamma_m1;
 }

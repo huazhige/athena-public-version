@@ -26,6 +26,7 @@
 
 class MeshBlock;
 class ParameterInput;
+class VerticalCommunication;
 
 // TODO(felker): consider adding a struct FaceFlux w/ overloaded ctor in athena.hpp, or:
 // using FaceFlux = AthenaArray<Real>[3];
@@ -65,6 +66,7 @@ class Hydro {
   HydroBoundaryVariable hbvar;
   HydroSourceTerms hsrc;
   HydroDiffusion hdif;
+  VerticalCommunication *pvc;
 
   // functions
   void NewBlockTimeStep();    // computes new timestep on a MeshBlock

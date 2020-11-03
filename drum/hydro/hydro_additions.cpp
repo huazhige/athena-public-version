@@ -7,12 +7,14 @@
 #include "../globals.hpp"
 #include "../thermodynamics/thermodynamics.hpp"
 #include "../utils/buffer_utils.hpp"
+#include "vertical_communication.hpp"
 
 int TAG_TOPPRESSURE = 1111;
 int TAG_BOTPRESSURE = 2222;
 
 Hydro::~Hydro() {
   delete psbuf_;
+  delete pvc;
 }
 
 void Hydro::CheckHydro() {

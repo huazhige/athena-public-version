@@ -24,6 +24,7 @@
 #include "hydro.hpp"
 #include "hydro_diffusion/hydro_diffusion.hpp"
 #include "srcterms/hydro_srcterms.hpp"
+#include "vertical_communication.hpp"
 
 // constructor, initializes data structures and parameters
 
@@ -156,6 +157,7 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
 
   // implicit correction
   implicit_flag = pin->GetOrAddInteger("hydro", "implicit_flag", 0);
+  pvc = new VerticalCommunication(this);
 }
 
 //----------------------------------------------------------------------------------------
