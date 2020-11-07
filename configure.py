@@ -842,7 +842,7 @@ if args['netcdf']:
   if args['netcdf_path'] != '':
     makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['netcdf_path']
     makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['netcdf_path']
-  if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+  if args['cxx'] == 'g++' or args['cxx'] == 'icpc' or args['cxx'] == 'cray':
     makefile_options['LIBRARY_FLAGS'] += ' -lnetcdf'
 else:
   definitions['NETCDF_OPTION'] = 'NO_NETCDFOUTPUT'
@@ -853,7 +853,7 @@ if args['pnetcdf']:
   if args['pnetcdf_path'] != '':
     makefile_options['PREPROCESSOR_FLAGS'] += ' -I%s/include' % args['pnetcdf_path']
     makefile_options['LINKER_FLAGS'] += ' -L%s/lib' % args['pnetcdf_path']
-  if args['cxx'] == 'g++' or args['cxx'] == 'icc' or args['cxx'] == 'cray':
+  if args['cxx'] == 'g++' or args['cxx'] == 'icpc' or args['cxx'] == 'cray':
     makefile_options['LIBRARY_FLAGS'] += ' -lpnetcdf'
 else:
   definitions['PNETCDF_OPTION'] = 'NO_PNETCDFOUTPUT'
