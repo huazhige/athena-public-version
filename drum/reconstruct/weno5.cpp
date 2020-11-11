@@ -108,12 +108,23 @@ void Reconstruction::Weno5X2(const int k, const int j, const int il, const int i
       wr(n,i) *= scale;
     }
 
-  for (int n=NMASS; n<NHYDRO; ++n)
+  for (int n=NMASS; n<NHYDRO; ++n) {
 #pragma omp simd
-    for (int i=il; i<=iu; ++i) {
+    for (int i=il; i<=il+2; ++i) {
+      wl(n,i) = interp_weno5(w(n,k,j+2,i),w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i),w(n,k,j-2,i));
+      wr(n,i) = interp_weno5(w(n,k,j-2,i),w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i),w(n,k,j+2,i));
+    }
+#pragma omp simd
+    for (int i=il+3; i<=iu-3; ++i) {
       wl(n,i) = interp_cp5(w(n,k,j+2,i),w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i),w(n,k,j-2,i));
       wr(n,i) = interp_cp5(w(n,k,j-2,i),w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i),w(n,k,j+2,i));
     }
+#pragma omp simd
+    for (int i=iu-2; i<=iu; ++i) {
+      wl(n,i) = interp_weno5(w(n,k,j+2,i),w(n,k,j+1,i),w(n,k,j,i),w(n,k,j-1,i),w(n,k,j-2,i));
+      wr(n,i) = interp_weno5(w(n,k,j-2,i),w(n,k,j-1,i),w(n,k,j,i),w(n,k,j+1,i),w(n,k,j+2,i));
+    }
+  }
 
   return;
 }
@@ -150,12 +161,23 @@ void Reconstruction::Weno5X3(const int k, const int j, const int il, const int i
       wr(n,i) *= scale;
     }
 
-  for (int n=NMASS; n<NHYDRO; ++n)
+  for (int n=NMASS; n<NHYDRO; ++n) {
 #pragma omp simd
-    for (int i=il; i<=iu; ++i) {
+    for (int i=il; i<=il+2; ++i) {
+      wl(n,i) = interp_weno5(w(n,k+2,j,i),w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i),w(n,k-2,j,i));
+      wr(n,i) = interp_weno5(w(n,k-2,j,i),w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i),w(n,k+2,j,i));
+    }
+#pragma omp simd
+    for (int i=il+3; i<=iu-3; ++i) {
       wl(n,i) = interp_cp5(w(n,k+2,j,i),w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i),w(n,k-2,j,i));
       wr(n,i) = interp_cp5(w(n,k-2,j,i),w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i),w(n,k+2,j,i));
     }
+#pragma omp simd
+    for (int i=iu-2; i<=iu; ++i) {
+      wl(n,i) = interp_weno5(w(n,k+2,j,i),w(n,k+1,j,i),w(n,k,j,i),w(n,k-1,j,i),w(n,k-2,j,i));
+      wr(n,i) = interp_weno5(w(n,k-2,j,i),w(n,k-1,j,i),w(n,k,j,i),w(n,k+1,j,i),w(n,k+2,j,i));
+    }
+  }
 
   return;
 }
