@@ -21,6 +21,7 @@
 #include <sstream>
 
 // Athena++ headers
+#include "../athena.hpp"
 
 void ChangeRunDir(const char *pdir);
 double ran2(std::int64_t *idum);
@@ -44,7 +45,7 @@ void CancelWallTimeAlarm();
 } // namespace SignalHandler
 
 //! test file existance
-bool IsFileExist(std::string fname);
+bool FileExists(std::string fname);
 
 //! test a blank line
 bool IsBlankLine(char const* line);
@@ -146,8 +147,11 @@ void FreeCArray(T ****a)
   delete[] a;
 }
 
+template <typename T> class AthenaArray;
+
 char* StripLine(char *line);
 char* NextLine(char *line, int num, FILE* stream);
-void ReadTabular(char const *fname, double** data, int *rows, int *cols);
+void read_data_table(char const *fname, double** data, int *rows, int *cols);
+void ReadDataTable(AthenaArray<Real> &data, std::string fname, char c = ' ');
 
 #endif // UTILS_UTILS_HPP_

@@ -142,7 +142,7 @@ bool read_idealized_parameters(std::string fname, Real &pmin, Real &pmax, Athena
   Real* &pmin_q, Real* &pmax_q, AthenaArray<Real>* &dqdz, std::vector<int> &mindex) 
 {
   std::stringstream msg;
-  if (!IsFileExist(fname)) {
+  if (!FileExists(fname)) {
     msg << "### FATAL ERROR in read_idealized_parameters. File " << fname 
         << " doesn't exist.";
     throw std::runtime_error(msg.str().c_str());

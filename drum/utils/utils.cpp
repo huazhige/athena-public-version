@@ -6,7 +6,7 @@
 // Athena++ header
 #include "utils.hpp"
 
-bool IsFileExist(std::string fname)
+bool FileExists(std::string fname)
 {
   std::ifstream ifile(fname.c_str());
   return ifile.is_open();
@@ -29,7 +29,7 @@ bool IsBlankLine(std::string const& line)
 std::string DecommentFile(std::string fname)
 {
   std::stringstream msg;
-  if (!IsFileExist(fname)) {
+  if (!FileExists(fname)) {
     msg << "### FATAL ERROR in DecommentFile. File " << fname << " doesn't exist." << std::endl;
     throw std::runtime_error(msg.str().c_str());
   }
