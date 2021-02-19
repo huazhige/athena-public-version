@@ -36,7 +36,7 @@ void Thermodynamics::SaturationAdjustment(AthenaArray<Real> &u) const
                      + u(IM2,k,j,i)*u(IM2,k,j,i)
                      + u(IM3,k,j,i)*u(IM3,k,j,i))/rho;
         Real uhat = (u(IEN,k,j,i) - KE)/(Rd_*rho_hat);
-        UpdateTPConservingU(q, rho, uhat);
+        UpdateTPConservingU(q, q0, rho, uhat, 0);
 
         // save q for debug purpose
         memcpy(q0, q, NHYDRO*sizeof(Real));
@@ -62,13 +62,16 @@ void Thermodynamics::SaturationAdjustment(AthenaArray<Real> &u) const
           for (int n = 1; n <= NVAPOR; ++n) {
             int nc = n + NVAPOR;
             t = q[IDN]/t3_[nc];
-            alpha = (gamma - 1.)*(beta_[nc]/t - delta_[nc] - 1.)/qsig;
+            // alpha = (gamma - 1.)*(beta_[nc]/t - delta_[nc] - 1.)/qsig;
+            // no latent heat, beta = delta = 0
+            alpha = 0.;
             rate = GasCloudIdeal(q, n, nc, t3_[nc], p3_[nc], alpha, beta_[nc], delta_[nc]);
             q[n] -= rate;
             q[nc] += rate;
           }
           Real Told = q[IDN];
-          UpdateTPConservingU(q, rho, uhat);
+          UpdateTPConservingU(q, q0, rho, uhat, 1);
+        
           if (fabs(q[IDN] - Told) < ftol_) break;
         }
         if (iter >= max_iter_) {

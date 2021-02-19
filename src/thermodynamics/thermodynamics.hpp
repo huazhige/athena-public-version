@@ -71,7 +71,8 @@ public:
   //        + \sum_i q_i^\hat c_i^\hat T
   //        + \sum_{i,j} q_{ij}^\hat c_{ij}^\hat T
   //        - \sum_{i,j} q_{ij}^\hat \mu_{ij}^\hat)/R_d^\hat
-  void UpdateTPConservingU(Real q[], Real rho, Real uhat) const;
+  void UpdateTPConservingU(Real q[], Real const q0[], Real rho, Real uhat,
+    int flag) const;
 
   void SaturationAdjustment(AthenaArray<Real> &u) const;
 

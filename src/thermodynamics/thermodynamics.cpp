@@ -128,14 +128,23 @@ Thermodynamics::Thermodynamics(MeshBlock *pmb, ParameterInput *pin)
 
 Thermodynamics::~Thermodynamics() {}
 
-void Thermodynamics::UpdateTPConservingU(Real q[], Real rho, Real uhat) const
+void Thermodynamics::UpdateTPConservingU(Real q[], Real const q0[], Real rho, 
+  Real uhat, int flag) const
 {
   Real gamma = pmy_block_->peos->GetGamma();
   Real cv = 1., qtol = 1., qeps = 1.;
-  for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-    uhat += beta_[n]*t3_[n]*q[n];
-    qtol -= q[n];
+  if (flag == 0) {
+    for (int n = 1 + NVAPOR; n < NMASS; ++n) {
+      uhat += beta_[n]*t3_[n]*q[n];
+      qtol -= q[n];
+    } 
+  } else {
+    for (int n = 1 + NVAPOR; n < NMASS; ++n) {
+      uhat += beta_[n]*t3_[n]*q0[n];
+      qtol -= q0[n];
+    }
   }
+    
   for (int n = 1; n < NMASS; ++n) {
     cv += (rcv_[n]*eps_[n] - 1.)*q[n];
     qeps += q[n]*(eps_[n] - 1.);

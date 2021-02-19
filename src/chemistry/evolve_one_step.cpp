@@ -34,7 +34,7 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
                      + u(IM2,k,j,i)*u(IM2,k,j,i)
                      + u(IM3,k,j,i)*u(IM3,k,j,i))/rho;
         Real uhat = (u(IEN,k,j,i) - KE)/(pthermo->GetRd()*rho_hat);
-        pthermo->UpdateTPConservingU(q1, rho, uhat);
+        pthermo->UpdateTPConservingU(q1, q0, rho, uhat, 0);
 
         int iter = 0;
         for (int n = 0; n < NHYDRO; ++n) q0[n] = q1[n];
@@ -69,7 +69,7 @@ void Chemistry::EvolveOneStep(AthenaArray<Real> &u, Real time, Real dt)
             q1[n] += dq[n]; 
             dq[n] = q1[n] - q0[n];
           }
-          pthermo->UpdateTPConservingU(q1, rho, uhat);
+          pthermo->UpdateTPConservingU(q1, q0, rho, uhat, 0);
           //std::cout << "norm = " << norm << std::endl;
         }
 
