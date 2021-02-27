@@ -24,7 +24,8 @@ Real dlnTdlnP(Real const q[], int const isat[],
   for (int n = 1; n <= NVAPOR; ++n) {
     if (isat[n] > 0) {
       int nc = n + NVAPOR;
-      Real latent = beta[nc]*t3[nc]/q[IDN] - delta[nc];
+      // no latent for lapse rate. ghz
+      Real latent = 0; //beta[nc]*t3[nc]/q[IDN] - delta[nc];
       c1 += q[n]/xd*latent;
       c2 += q[n]/xd*latent*latent;
     }
@@ -58,6 +59,7 @@ Real GasCloudIdeal(Real const q[], int iv, int ic,
   if (s > 1.) return -xc;
 
   Real g = 1.;
+  // alpha is set to one so there is no need to change g. ghz
   for (int n = 1 + NVAPOR; n < NMASS; ++n) g -= q[n];
   g -= xv;
 
@@ -76,7 +78,8 @@ Real q_gas(Real const w[])
 {
   Real fgas = 1.;
   for (int n = 1 + NVAPOR; n < NMASS; ++n)
-    fgas -= w[n];
+    // condensates are considered as gas. ghz
+    fgas -= 0. ; // w[n];
   return fgas;
 }
 
@@ -84,7 +87,8 @@ Real q_eps(Real const w[], Real const eps[])
 {
   Real feps = 1.;
   for (int n = 1 + NVAPOR; n < NMASS; ++n)
-    feps -= w[n];
+    // condensates are considered as gas. ghz
+    feps -= 0.; // w[n];
   for (int n = 1; n <= NVAPOR; ++n)
     feps += w[n]*(1./eps[n] - 1.);
   return feps;

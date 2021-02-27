@@ -101,9 +101,10 @@ void EquationOfState::ConservedToPrimitive(
         Real LE = 0., fsig = 1., feps = 1.;
         // clouds
         for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-          LE += -pthermo->GetLatent(n)*cons(n,k,j,i);
+          // no latent. ghz
+          LE += 0.; //-pthermo->GetLatent(n)*cons(n,k,j,i);
           fsig += prim(n,k,j,i)*(pthermo->GetCvRatio(n) - 1.);
-          feps -= prim(n,k,j,i);
+          feps -= 0.; //prim(n,k,j,i);
         }
         // vapors
         for (int n = 1; n <= NVAPOR; ++n) {
@@ -179,9 +180,10 @@ void EquationOfState::PrimitiveToConserved(
         Real LE = 0., fsig = 1., feps = 1.;
         // clouds
         for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-          LE += -pthermo->GetLatent(n)*cons(n,k,j,i);
+          // no latent heat. ghz
+          LE += 0.; // -pthermo->GetLatent(n)*cons(n,k,j,i);
           fsig += prim(n,k,j,i)*(pthermo->GetCvRatio(n) - 1.);
-          feps -= prim(n,k,j,i);
+          feps -= 0.; // prim(n,k,j,i);
         }
         // vapors
         for (int n = 1; n <= NVAPOR; ++n) {
@@ -206,7 +208,8 @@ Real EquationOfState::SoundSpeed(const Real prim[NHYDRO]) {
   Real fsig = 1., feps = 1.;
   for (int n = 1 + NVAPOR; n < NMASS; ++n) {
     fsig += prim[n]*(pthermo->GetCvRatio(n) - 1.);
-    feps -= prim[n];
+    // ghz
+    feps -= 0.; //prim[n];
   }
   for (int n = 1; n <= NVAPOR; ++n) {
     fsig += prim[n]*(pthermo->GetCvRatio(n) - 1.);

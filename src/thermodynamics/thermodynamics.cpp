@@ -133,16 +133,11 @@ void Thermodynamics::UpdateTPConservingU(Real q[], Real const q0[], Real rho,
 {
   Real gamma = pmy_block_->peos->GetGamma();
   Real cv = 1., qtol = 1., qeps = 1.;
-  if (flag == 0) {
-    for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-      uhat += beta_[n]*t3_[n]*q[n];
-      qtol -= q[n];
-    } 
-  } else {
-    for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-      uhat += beta_[n]*t3_[n]*q0[n];
-      qtol -= q0[n];
-    }
+
+  for (int n = 1 + NVAPOR; n < NMASS; ++n) {
+    // ghz
+    uhat += 0.; //beta_[n]*t3_[n]*q[n];
+    qtol -= 0.; //q[n];
   }
     
   for (int n = 1; n < NMASS; ++n) {
@@ -180,8 +175,9 @@ void Thermodynamics::ConservedToThermodynamic(AthenaArray<Real> &q,
         // calculate temperature and pressure
         Real cv = 1., qtol = 1., qeps = 1.;
         for (int n = 1 + NVAPOR; n < NMASS; ++n) {
-          uhat += beta_[n]*t3_[n]*q(n,k,j,i);
-          qtol -= q(n,k,j,i);
+          // ghz
+          uhat += 0.; //beta_[n]*t3_[n]*q(n,k,j,i);
+          qtol -= 0.; //q(n,k,j,i);
         }
         for (int n = 1; n < NMASS; ++n) {
           cv += (rcv_[n]*eps_[n] - 1.)*q(n,k,j,i);
@@ -201,7 +197,8 @@ void Thermodynamics::ThermodynamicToConserved(AthenaArray<Real> &u,
         // calculate total density
         Real qtol = 1., qeps = 1.;
         for (int n = 1 + NVAPOR; n < NMASS; ++n)
-          qtol -= q(n,k,j,i);
+          // ghz
+          qtol -= 0.; //q(n,k,j,i);
         for (int n = 1; n < NMASS; ++n)
           qeps += q(n,k,j,i)*(eps_[n] - 1.);
         Real rho = (q(IPR,k,j,i)*qeps)/(Rd_*q(IDN,k,j,i)*qtol);
@@ -227,7 +224,8 @@ void Thermodynamics::PolytropicIndex(AthenaArray<Real> &gm, AthenaArray<Real> &w
         Real fsig = 1., feps = 1.;
         for (int n = 1 + NVAPOR; n < NMASS; ++n) {
           fsig += w(n,k,j,i)*(rcv_[n] - 1.);
-          feps -= w(n,k,j,i);
+          // ghz
+          feps -= 0.; //w(n,k,j,i);
         }
         for (int n = 1; n <= NVAPOR; ++n) {
           fsig += w(n,k,j,i)*(rcv_[n] - 1.);
